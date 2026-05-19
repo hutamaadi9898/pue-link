@@ -1,0 +1,156 @@
+
+ ⛅️ wrangler 4.92.0
+───────────────────
+Using redirected Wrangler configuration.
+ - Configuration being used: "dist\server\wrangler.json"
+ - Original user's configuration: "wrangler.jsonc"
+ - Deploy configuration file: ".wrangler\deploy\config.json"
+Your Worker has access to the following bindings:
+Binding                                                                      Resource                  Mode
+env.DB (pue-link-db)                                                         D1 Database               local
+env.VIDEOS_BUCKET (pue-link-videos)                                          R2 Bucket                 local
+env.ASSETS                                                                   Assets                    local
+env.PUBLIC_ONESIGNAL_APP_ID ("fb3dde7a-e046-48e1-bcde-e7dfd4a8185c")         Environment Variable      local
+env.PUE_LINK_ALLOW_SEED ("true")                                             Environment Variable      local
+env.PUE_LINK_DEFAULT_THRESHOLD ("5")                                         Environment Variable      local
+
+Attaching additional modules:
+┌───────────────────────────────────────────────────────────┬──────┬────────────┐
+│ Name                                                      │ Type │ Size       │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/image-passthrough-endpoint_xzVb7XFT.mjs            │ esm  │ 72.92 KiB  │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/noop-entrypoint_DsBX4kaI.mjs                       │ esm  │ 0.10 KiB   │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/noop_Dgt3yAqR.mjs                                  │ esm  │ 0.69 KiB   │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/seed_EDP5Z1CQ.mjs                                  │ esm  │ 5.30 KiB   │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/worker-entry_Ch7eWkj8.mjs                          │ esm  │ 459.95 KiB │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs │ esm  │ 0.22 KiB   │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ chunks/_virtual_astro_session-driver_CFDKUIUI.mjs         │ esm  │ 24.68 KiB  │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ virtual_astro_middleware.mjs                              │ esm  │ 0.12 KiB   │
+├───────────────────────────────────────────────────────────┼──────┼────────────┤
+│ Total (8 modules)                                         │      │ 563.97 KiB │
+└───────────────────────────────────────────────────────────┴──────┴────────────┘
+⎔ Starting local server...
+[wrangler:info] Ready on http://127.0.0.1:8787
+[wrangler:info] GET / 200 OK (34ms)
+[wrangler:info] POST /api/dev/seed 500 Internal Server Error (49ms)
+Attaching additional modules:
+┌──────────────────────────────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                                                 │ Type │ Size        │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/index_APLKH8VT.mjs                                 │ esm  │ 124.99 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/noop-entrypoint_DsBX4kaI.mjs                       │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/worker-entry_Cg5l-usp.mjs                          │ esm  │ 963.01 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_noop-middleware_rBEj3WFf.mjs                      │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_session-driver_CFDKUIUI.mjs         │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/prerender-entry.DmNoF6xd.mjs                              │ esm  │ 0.17 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/image-passthrough-endpoint_DG3BzBAy.mjs                       │ esm  │ 72.92 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop-entrypoint_DsBX4kaI.mjs                                  │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop_BIEblmd_.mjs                                             │ esm  │ 0.69 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/seed_EDP5Z1CQ.mjs                                             │ esm  │ 5.30 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/worker-entry_DD5PSjB0.mjs                                     │ esm  │ 454.69 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs            │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_session-driver_CFDKUIUI.mjs                    │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ virtual_astro_middleware.mjs                                         │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (15 modules)                                                   │      │ 1671.99 KiB │
+└──────────────────────────────────────────────────────────────────────┴──────┴─────────────┘
+⎔ Reloading local server...
+Attaching additional modules:
+┌──────────────────────────────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                                                 │ Type │ Size        │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/index_APLKH8VT.mjs                                 │ esm  │ 124.99 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/noop-entrypoint_DsBX4kaI.mjs                       │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/worker-entry_Cg5l-usp.mjs                          │ esm  │ 963.01 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_noop-middleware_rBEj3WFf.mjs                      │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_session-driver_CFDKUIUI.mjs         │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/prerender-entry.DmNoF6xd.mjs                              │ esm  │ 0.17 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/image-passthrough-endpoint_DG3BzBAy.mjs                       │ esm  │ 72.92 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop-entrypoint_DsBX4kaI.mjs                                  │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop_BIEblmd_.mjs                                             │ esm  │ 0.69 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/seed_EDP5Z1CQ.mjs                                             │ esm  │ 5.30 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/worker-entry_DD5PSjB0.mjs                                     │ esm  │ 454.69 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs            │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_session-driver_CFDKUIUI.mjs                    │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ virtual_astro_middleware.mjs                                         │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (15 modules)                                                   │      │ 1671.99 KiB │
+└──────────────────────────────────────────────────────────────────────┴──────┴─────────────┘
+Attaching additional modules:
+┌──────────────────────────────────────────────────────────────────────┬──────┬─────────────┐
+│ Name                                                                 │ Type │ Size        │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/index_APLKH8VT.mjs                                 │ esm  │ 124.99 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/noop-entrypoint_DsBX4kaI.mjs                       │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/worker-entry_Cg5l-usp.mjs                          │ esm  │ 963.01 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_noop-middleware_rBEj3WFf.mjs                      │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/chunks/_virtual_astro_session-driver_CFDKUIUI.mjs         │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ .prerender/prerender-entry.DmNoF6xd.mjs                              │ esm  │ 0.17 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/image-passthrough-endpoint_DG3BzBAy.mjs                       │ esm  │ 72.92 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop-entrypoint_DsBX4kaI.mjs                                  │ esm  │ 0.10 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/noop_BIEblmd_.mjs                                             │ esm  │ 0.69 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/seed_EDP5Z1CQ.mjs                                             │ esm  │ 5.30 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/worker-entry_DD5PSjB0.mjs                                     │ esm  │ 454.69 KiB  │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_server-island-manifest_CFl7y3Qj.mjs            │ esm  │ 0.22 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ chunks/_virtual_astro_session-driver_CFDKUIUI.mjs                    │ esm  │ 24.68 KiB   │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ virtual_astro_middleware.mjs                                         │ esm  │ 0.12 KiB    │
+├──────────────────────────────────────────────────────────────────────┼──────┼─────────────┤
+│ Total (15 modules)                                                   │      │ 1671.99 KiB │
+└──────────────────────────────────────────────────────────────────────┴──────┴─────────────┘
+
+[32mIf you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose[0m
+? Would you like to report this error to Cloudflare? Wrangler's output and the error details will be shared with the Wrangler team to help us diagnose and fix the issue.
+🤖 Using fallback value in non-interactive context: no
+⎔ Reloading local server...

@@ -1,0 +1,18 @@
+---
+import { AppShell } from "@/components/app/AppShell";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const account = Astro.locals.currentAccount;
+export const prerender = false;
+---
+
+<BaseLayout title="Lokasi - Pue Link">
+  <AppShell
+    client:load
+    title="Lokasi"
+    eyebrow="Manajemen lokasi"
+    description="Lihat lokasi publik dan tiga slot video yang tersedia untuk setiap lokasi."
+    accountName={account?.display_name}
+    accountRole={account?.role}
+  />
+</BaseLayout>

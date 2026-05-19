@@ -1,0 +1,18 @@
+---
+import { AppShell } from "@/components/app/AppShell";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const account = Astro.locals.currentAccount;
+export const prerender = false;
+---
+
+<BaseLayout title="Pengaturan - Pue Link">
+  <AppShell
+    client:load
+    title="Pengaturan"
+    eyebrow="Threshold dan notifikasi"
+    description="Atur batas pemutaran dan status notifikasi keluarga untuk demo berikutnya."
+    accountName={account?.display_name}
+    accountRole={account?.role}
+  />
+</BaseLayout>

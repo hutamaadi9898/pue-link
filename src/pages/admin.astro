@@ -1,0 +1,19 @@
+---
+import { AppShell } from "@/components/app/AppShell";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const account = Astro.locals.currentAccount;
+export const prerender = false;
+---
+
+<BaseLayout title="Admin - Pue Link">
+  <AppShell
+    client:load
+    variant="admin"
+    title="Setup demo"
+    eyebrow="Super admin"
+    description="Kelola keluarga, akun publik, perangkat gelang, lokasi, dan slot demo dari satu layar."
+    accountName={account?.display_name}
+    accountRole={account?.role}
+  />
+</BaseLayout>

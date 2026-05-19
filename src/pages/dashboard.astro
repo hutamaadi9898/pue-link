@@ -1,0 +1,18 @@
+---
+import { AppShell } from "@/components/app/AppShell";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const account = Astro.locals.currentAccount;
+export const prerender = false;
+---
+
+<BaseLayout title="Dashboard - Pue Link">
+  <AppShell
+    client:load
+    title="Ringkasan"
+    eyebrow="Dashboard keluarga"
+    description="Pantau video, lokasi aktif, rekomendasi refresh, dan riwayat pemutaran terbaru."
+    accountName={account?.display_name}
+    accountRole={account?.role}
+  />
+</BaseLayout>

@@ -1,0 +1,11 @@
+---
+import { LoginPage } from "@/components/app/LoginPage";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const redirectTo = Astro.url.searchParams.get("redirect") || "/";
+export const prerender = false;
+---
+
+<BaseLayout title="Login - Pue Link">
+  <LoginPage client:load redirectTo={redirectTo} />
+</BaseLayout>

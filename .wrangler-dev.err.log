@@ -1,0 +1,19 @@
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m08.53.29 [ERROR] Error: Astro.locals.runtime.env has been removed in Astro v6. Use 'import { env } from "cloudflare:workers"' instead.[0m
+
+      at get env (file:///D:/Laravel/pue-link/dist/server/chunks/worker-entry_Ch7eWkj8.mjs:13468:15)
+      at getEnv (file:///D:/Laravel/pue-link/dist/server/chunks/seed_EDP5Z1CQ.mjs:4:25)
+      at Module.POST (file:///D:/Laravel/pue-link/dist/server/chunks/seed_EDP5Z1CQ.mjs:122:15)
+      at renderEndpoint (file:///D:/Laravel/pue-link/dist/server/chunks/worker-entry_Ch7eWkj8.mjs:4443:32)
+      at PagesHandler.handle (file:///D:/Laravel/pue-link/dist/server/chunks/worker-entry_Ch7eWkj8.mjs:10100:26)
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mservice core:user:pue-link: Uncaught TypeError: Invalid URL string.[0m
+
+    at null.<anonymous> (chunks/worker-entry_DD5PSjB0.mjs:8415:14) in deserializeManifest
+    at null.<anonymous> (chunks/worker-entry_DD5PSjB0.mjs:13401:19)
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mThe Workers runtime failed to start. There is likely additional logging output above.[0m
+
+
+🪵  Logs were written to "C:\Users\PC02\AppData\Roaming\xdg.config\.wrangler\logs\wrangler-2026-05-19_01-53-03_538.log"

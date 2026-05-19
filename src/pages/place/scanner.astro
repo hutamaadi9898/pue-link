@@ -1,0 +1,11 @@
+---
+import { AppShell } from "@/components/app/AppShell";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const account = Astro.locals.currentAccount;
+export const prerender = false;
+---
+
+<BaseLayout title="Scanner Kiosk - Pue Link">
+  <AppShell client:load variant="place" accountName={account?.display_name} accountRole={account?.role} />
+</BaseLayout>

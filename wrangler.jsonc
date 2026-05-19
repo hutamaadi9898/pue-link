@@ -1,13 +1,34 @@
 {
 	"compatibility_date": "2026-05-19",
 	"compatibility_flags": [
-		"global_fetch_strictly_public"
+		"global_fetch_strictly_public",
+		"nodejs_compat"
 	],
 	"name": "pue-link",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "pue-link-db",
+			"database_id": "e2f1827b-e4a7-48e5-a528-eddbfaac05b1"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "VIDEOS_BUCKET",
+			"bucket_name": "pue-link-videos"
+		}
+	],
+	"vars": {
+		"BETTER_AUTH_SECRET": "pue-link-local-demo-secret-change-before-production",
+		"BETTER_AUTH_URL": "http://localhost:4321",
+		"PUBLIC_ONESIGNAL_APP_ID": "fb3dde7a-e046-48e1-bcde-e7dfd4a8185c",
+		"PUE_LINK_ALLOW_SEED": "true",
+		"PUE_LINK_DEFAULT_THRESHOLD": "5"
 	},
 	"observability": {
 		"enabled": true
