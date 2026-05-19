@@ -293,7 +293,7 @@ Object key format:
 - `families/{familyId}/locations/{locationId}/slots/{slotNumber}/{videoId}.{ext}`
 
 Upload limits:
-- One video file can be up to 150 MB.
+- One video file can be up to 50 MB.
 - Each family account has a maximum total video storage quota of 5 GB across all uploaded videos.
 - Replacing a video counts against the quota by projected storage after subtracting the old slot video size.
 
@@ -666,7 +666,7 @@ Tasks:
    - Later optimization: presigned/direct upload flow.
 - [x] Add file validation:
    - Accept `video/mp4`, `video/webm`, `video/quicktime` if supported.
-   - Enforce MVP max file size of 150 MB per video.
+   - Enforce MVP max file size of 50 MB per video.
    - Enforce family account storage quota of 5 GB across uploaded videos.
 - [x] Implement `POST /api/locations/:locationId/slots/:slotNumber/video`.
 - [x] Store object in R2.

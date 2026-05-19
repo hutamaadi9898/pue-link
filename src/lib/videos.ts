@@ -1,6 +1,6 @@
-export const MAX_VIDEO_SIZE = 150 * 1024 * 1024;
+export const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 export const FAMILY_VIDEO_QUOTA = 5 * 1024 * 1024 * 1024;
-export const MAX_VIDEO_SIZE_LABEL = "150 MB";
+export const MAX_VIDEO_SIZE_LABEL = "50 MB";
 export const FAMILY_VIDEO_QUOTA_LABEL = "5 GB";
 
 const allowedVideoTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
