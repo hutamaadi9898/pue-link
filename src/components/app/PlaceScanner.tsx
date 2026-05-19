@@ -81,7 +81,9 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
 
       setResult(payload.data);
       setToken("");
+      setCameraMessage(message("Scan accepted. Opening player...", "扫描已接受。正在打开播放器..."));
       stopCamera();
+      window.location.assign(payload.data.playbackUrl);
     } catch (scanError) {
       setError(scanError instanceof Error ? scanError.message : message("Scan could not be processed.", "无法处理扫描。"));
     } finally {
