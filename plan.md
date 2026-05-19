@@ -39,7 +39,8 @@ Design principles:
 - Avoid decorative gradients, oversized hero sections, heavy illustrations, and large rounded pill-heavy components.
 - Login can use a split layout similar to the reference: compact login form on the left, one warm family/video preview image panel on the right.
 - Use lucide icons for navigation/actions and keep labels short.
-- Use Indonesian UI copy for user-facing demo screens.
+- Use English as the default UI language and Mandarin Chinese as the secondary toggle language.
+- Use Tainan, Taiwan time (`Asia/Taipei`, UTC+8) as the base timezone for calendar grouping and date-based demo behavior.
 - Make every major screen responsive, but optimize desktop/tablet for dashboard and kiosk workflows.
 
 ## 1. Domain Rules
@@ -290,6 +291,11 @@ Bucket: `pue-link-videos`
 
 Object key format:
 - `families/{familyId}/locations/{locationId}/slots/{slotNumber}/{videoId}.{ext}`
+
+Upload limits:
+- One video file can be up to 150 MB.
+- Each family account has a maximum total video storage quota of 5 GB across all uploaded videos.
+- Replacing a video counts against the quota by projected storage after subtracting the old slot video size.
 
 Checkpoint:
 - Uploading a replacement video writes a new R2 object.
@@ -660,7 +666,8 @@ Tasks:
    - Later optimization: presigned/direct upload flow.
 - [x] Add file validation:
    - Accept `video/mp4`, `video/webm`, `video/quicktime` if supported.
-   - Enforce MVP max size, for example 50 MB.
+   - Enforce MVP max file size of 150 MB per video.
+   - Enforce family account storage quota of 5 GB across uploaded videos.
 - [x] Implement `POST /api/locations/:locationId/slots/:slotNumber/video`.
 - [x] Store object in R2.
 - [x] Create or replace `videos` row.
@@ -790,28 +797,28 @@ Checkpoint:
 ## Phase 9: Calendar Playback History
 
 Goal:
-- [ ] Show when and where videos were played.
+- [x] Show when and where videos were played.
 
 Tasks:
-- [ ] Add `/calendar` route.
-- [ ] Query playback logs grouped by date.
-- [ ] Build React calendar component.
-- [ ] Highlight dates with playback activity.
-- [ ] Add selected day side panel/table:
+- [x] Add `/calendar` route.
+- [x] Query playback logs grouped by date.
+- [x] Build React calendar component.
+- [x] Highlight dates with playback activity.
+- [x] Add selected day side panel/table:
    - Time
    - Location
    - Slot
    - Video title
    - Machine ID
-- [ ] Add filters:
+- [x] Add filters:
    - Location
    - Month
-- [ ] Add empty states.
+- [x] Add empty states.
 
 Checkpoint:
-- [ ] Scanning today highlights today's date.
-- [ ] Selecting today shows the scan event.
-- [ ] Filtering by minimarket hides park/taman logs.
+- [x] Scanning today highlights today's date.
+- [x] Selecting today shows the scan event.
+- [x] Filtering by minimarket hides park/taman logs.
 
 ## Phase 10: Demo Polish And Reliability
 

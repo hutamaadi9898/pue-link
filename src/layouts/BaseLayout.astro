@@ -35,7 +35,7 @@ const { title = "Pue Link" } = Astro.props;
 
       function applyLanguage(language) {
         root.dataset.language = language;
-        root.lang = language === "zh" ? "zh-Hans" : "en";
+        root.lang = language === "zh" ? "zh-Hant" : "en";
         localStorage.setItem("pue-link-language", language);
       }
 

@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { requireRole } from "@/lib/auth";
 import { createId } from "@/lib/ids";
 import { nowIso } from "@/lib/time";
-import { isAllowedVideoType, MAX_VIDEO_SIZE, videoExtension, videoObjectKey } from "@/lib/videos";
+import { FAMILY_VIDEO_QUOTA, FAMILY_VIDEO_QUOTA_LABEL, isAllowedVideoType, MAX_VIDEO_SIZE, MAX_VIDEO_SIZE_LABEL, videoExtension, videoObjectKey } from "@/lib/videos";
 
 export const prerender = false;
 
@@ -28,14 +28,14 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   }
 
   const slot = await env.DB.prepare(
-    `select vs.id, vs.video_id, old.r2_key as old_r2_key
+    `select vs.id, vs.video_id, old.r2_key as old_r2_key, old.file_size as old_file_size
      from video_slots vs
      left join videos old on old.id = vs.video_id
      where vs.family_id = ? and vs.location_id = ? and vs.slot_number = ?
      limit 1`
   )
     .bind(familyId, locationId, slotNumber)
-    .first<{ id: string; video_id: string | null; old_r2_key: string | null }>();
+    .first<{ id: string; video_id: string | null; old_r2_key: string | null; old_file_size: number | null }>();
 
   if (!slot) {
     return json({ ok: false, error: "Video slot was not found for this family." }, { status: 404 });
@@ -55,7 +55,21 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
   }
 
   if (file.size <= 0 || file.size > MAX_VIDEO_SIZE) {
-    return json({ ok: false, error: "Maximum video size is 50 MB." }, { status: 400 });
+    return json({ ok: false, error: `Maximum video size is ${MAX_VIDEO_SIZE_LABEL}.` }, { status: 400 });
+  }
+
+  const familyStorage = await env.DB.prepare(
+    `select coalesce(sum(file_size), 0) as used_bytes
+     from videos
+     where family_id = ?`
+  )
+    .bind(familyId)
+    .first<{ used_bytes: number }>();
+  const usedBytes = familyStorage?.used_bytes ?? 0;
+  const projectedBytes = usedBytes - (slot.old_file_size ?? 0) + file.size;
+
+  if (projectedBytes > FAMILY_VIDEO_QUOTA) {
+    return json({ ok: false, error: `Family video storage quota is ${FAMILY_VIDEO_QUOTA_LABEL}. Remove or replace a larger video before uploading.` }, { status: 400 });
   }
 
   const timestamp = nowIso();

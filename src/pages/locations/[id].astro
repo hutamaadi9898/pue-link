@@ -4,6 +4,7 @@ import { LocationSlots } from "@/components/app/LocationSlots";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { ensureSlotsForFamilyLocation } from "@/lib/demo-admin";
 import { FALLBACK_OVERUSE_THRESHOLD } from "@/lib/thresholds";
+import { FAMILY_VIDEO_QUOTA } from "@/lib/videos";
 
 export const prerender = false;
 
@@ -53,6 +54,12 @@ const slotsResult = await env.DB.prepare(
 }>();
 
 const slots = slotsResult.results ?? [];
+const storage = await env.DB.prepare(
+  `select coalesce(sum(file_size), 0) as used_bytes
+   from videos
+   where family_id = ?`
+).bind(familyId).first<{ used_bytes: number }>();
+const quotaUsedBytes = storage?.used_bytes ?? 0;
 ---
 
 <BaseLayout title={`${location.name} - Pue Link`}>
@@ -86,7 +93,13 @@ const slots = slotsResult.results ?? [];
         </div>
       </header>
 
-      <LocationSlots client:load locationId={location.id} slots={slots} />
+      <LocationSlots
+        client:load
+        locationId={location.id}
+        slots={slots}
+        quotaUsedBytes={quotaUsedBytes}
+        quotaMaxBytes={FAMILY_VIDEO_QUOTA}
+      />
     </section>
   </main>
 </BaseLayout>

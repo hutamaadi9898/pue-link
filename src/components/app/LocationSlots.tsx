@@ -3,8 +3,8 @@ import { AlertTriangle, CheckCircle2, Loader2, Play, Trash2, UploadCloud } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { videoRefreshStatus } from "@/lib/thresholds";
+import { FAMILY_VIDEO_QUOTA_LABEL, MAX_VIDEO_SIZE, MAX_VIDEO_SIZE_LABEL } from "@/lib/videos";
 
-const maxVideoSize = 50 * 1024 * 1024;
 const allowedTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
 type Slot = {
@@ -24,10 +24,14 @@ type Slot = {
 type Props = {
   locationId: string;
   slots: Slot[];
+  quotaUsedBytes: number;
+  quotaMaxBytes: number;
 };
 
 function formatSize(size: number | null) {
-  if (!size) return "size unavailable";
+  if (size === null) return "size unavailable";
+  if (size === 0) return "0 MB";
+  if (size >= 1024 * 1024 * 1024) return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
   return `${Math.max(1, Math.round(size / 1024 / 1024))} MB`;
 }
 
@@ -40,11 +44,12 @@ function status(slot: Slot) {
   return { en: "Empty", zh: "空位", className: "bg-muted text-muted-foreground", icon: UploadCloud };
 }
 
-export function LocationSlots({ locationId, slots }: Props) {
+export function LocationSlots({ locationId, slots, quotaUsedBytes, quotaMaxBytes }: Props) {
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [progress, setProgress] = useState<Record<number, number>>({});
   const [errors, setErrors] = useState<Record<number, string>>({});
   const orderedSlots = useMemo(() => [...slots].sort((a, b) => a.slot_number - b.slot_number), [slots]);
+  const quotaPercent = Math.min(100, Math.round((quotaUsedBytes / quotaMaxBytes) * 100));
 
   function upload(slot: Slot, form: HTMLFormElement) {
     const data = new FormData(form);
@@ -60,8 +65,14 @@ export function LocationSlots({ locationId, slots }: Props) {
       return;
     }
 
-    if (file.size > maxVideoSize) {
-      setErrors((current) => ({ ...current, [slot.slot_number]: "Maximum video size is 50 MB." }));
+    if (file.size > MAX_VIDEO_SIZE) {
+      setErrors((current) => ({ ...current, [slot.slot_number]: `Maximum video size is ${MAX_VIDEO_SIZE_LABEL}.` }));
+      return;
+    }
+
+    const projectedBytes = quotaUsedBytes - (slot.file_size ?? 0) + file.size;
+    if (projectedBytes > quotaMaxBytes) {
+      setErrors((current) => ({ ...current, [slot.slot_number]: `Family video storage quota is ${FAMILY_VIDEO_QUOTA_LABEL}. Remove or replace a larger video before uploading.` }));
       return;
     }
 
@@ -110,7 +121,24 @@ export function LocationSlots({ locationId, slots }: Props) {
   }
 
   return (
-    <section className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <section className="grid min-w-0 gap-3 sm:gap-4">
+      <div className="rounded-lg border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-bold"><span className="i18n-en">Family video quota</span><span className="i18n-zh">家庭视频配额</span></p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <span className="i18n-en">Each video can be up to {MAX_VIDEO_SIZE_LABEL}. Family storage is capped at {FAMILY_VIDEO_QUOTA_LABEL}.</span>
+              <span className="i18n-zh">每个视频最大 {MAX_VIDEO_SIZE_LABEL}。家庭存储上限为 {FAMILY_VIDEO_QUOTA_LABEL}。</span>
+            </p>
+          </div>
+          <p className="text-sm font-semibold">{formatSize(quotaUsedBytes)} / {formatSize(quotaMaxBytes)}</p>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-sm bg-muted">
+          <div className="h-full bg-primary transition-all" style={{ width: `${quotaPercent}%` }} />
+        </div>
+      </div>
+
+      <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
       {orderedSlots.map((slot) => {
         const count = slot.play_count ?? 0;
         const itemStatus = status(slot);
@@ -161,7 +189,7 @@ export function LocationSlots({ locationId, slots }: Props) {
             ) : (
               <div className="mt-5 rounded-md border border-dashed bg-background p-4">
                 <p className="text-sm font-semibold"><span className="i18n-en">Ready for upload</span><span className="i18n-zh">准备上传</span></p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground"><span className="i18n-en">MP4, WebM, or QuickTime. Max 50 MB.</span><span className="i18n-zh">MP4、WebM 或 QuickTime。最大 50 MB。</span></p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground"><span className="i18n-en">MP4, WebM, or QuickTime. Max {MAX_VIDEO_SIZE_LABEL}.</span><span className="i18n-zh">MP4、WebM 或 QuickTime。最大 {MAX_VIDEO_SIZE_LABEL}。</span></p>
               </div>
             )}
 
@@ -198,6 +226,7 @@ export function LocationSlots({ locationId, slots }: Props) {
           </article>
         );
       })}
+      </div>
     </section>
   );
 }

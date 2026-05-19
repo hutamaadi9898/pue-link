@@ -1,18 +1,113 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
+import { CalendarPlaybackHistory, type PlaybackHistoryRow } from "@/components/app/CalendarPlaybackHistory";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const familyId = account.family_id!;
+const monthParam = Astro.url.searchParams.get("month");
+const dateParam = Astro.url.searchParams.get("date");
+const taiwanOffsetMs = 8 * 60 * 60 * 1000;
+const taiwanNow = new Date(Date.now() + taiwanOffsetMs);
+const currentMonth = taiwanNow.toISOString().slice(0, 7);
+const currentDate = taiwanNow.toISOString().slice(0, 10);
+const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth;
+const defaultSelectedDate = month === currentMonth ? currentDate : `${month}-01`;
+const selectedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : defaultSelectedDate;
+const [year, monthNumber] = month.split("-").map(Number);
+const monthStart = new Date(Date.UTC(year, monthNumber - 1, 1) - taiwanOffsetMs).toISOString();
+const monthEnd = new Date(Date.UTC(year, monthNumber, 1) - taiwanOffsetMs).toISOString();
+
+const [family, locationsResult, dailyResult, logsResult] = await Promise.all([
+  env.DB.prepare(`select name from families where id = ? limit 1`).bind(familyId).first<{ name: string }>(),
+  env.DB.prepare(
+    `select id, name, kind
+     from locations
+     where is_active = 1
+     order by name`
+  ).all<{ id: string; name: string; kind: string | null }>(),
+  env.DB.prepare(
+    `select substr(datetime(pl.played_at, '+8 hours'), 1, 10) as played_date, count(*) as play_count
+     from playback_logs pl
+     where pl.family_id = ? and pl.played_at >= ? and pl.played_at < ?
+     group by substr(datetime(pl.played_at, '+8 hours'), 1, 10)
+     order by played_date`
+  ).bind(familyId, monthStart, monthEnd).all<{ played_date: string; play_count: number }>(),
+  env.DB.prepare(
+    `select pl.id, pl.played_at, pl.location_id, l.name as location_name,
+            vs.slot_number, v.title as video_title, pl.machine_id
+     from playback_logs pl
+     join locations l on l.id = pl.location_id
+     join video_slots vs on vs.id = pl.slot_id
+     join videos v on v.id = pl.video_id
+     where pl.family_id = ? and pl.played_at >= ? and pl.played_at < ?
+     order by pl.played_at desc`
+  ).bind(familyId, monthStart, monthEnd).all<PlaybackHistoryRow>()
+]);
+
+const locations = locationsResult.results ?? [];
+const dailyCounts = dailyResult.results ?? [];
+const logs = logsResult.results ?? [];
+const totalPlays = logs.length;
+const activeDays = dailyCounts.length;
+const mostActiveDay = dailyCounts.reduce((best, day) => (day.play_count > (best?.play_count ?? 0) ? day : best), null as { played_date: string; play_count: number } | null);
 ---
 
 <BaseLayout title="Calendar - Pue Link">
-  <AppShell
-    client:load
-    title="Calendar"
-    eyebrow="Playback history"
-    description="Browse dates, locations, and videos played by public kiosks."
-    accountName={account?.display_name}
-    accountRole={account?.role}
-  />
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4">
+        <p class="font-bold">Pue Link</p>
+        <p class="mt-1 text-xs text-muted-foreground"><span class="i18n-en">Family dashboard</span><span class="i18n-zh">家庭看板</span></p>
+      </div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link" href="/dashboard"><span class="i18n-en">Home</span><span class="i18n-zh">首頁</span></a>
+        <a class="app-nav-link" href="/locations"><span class="i18n-en">Locations</span><span class="i18n-zh">地點</span></a>
+        <a class="app-nav-link app-nav-link-active" href="/calendar"><span class="i18n-en">Calendar</span><span class="i18n-zh">日曆</span></a>
+        <a class="app-nav-link" href="/settings"><span class="i18n-en">Settings</span><span class="i18n-zh">設定</span></a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">登出</span></a>
+      </nav>
+      <div class="mt-6 rounded-md border bg-background p-3">
+        <p class="text-xs font-semibold uppercase text-muted-foreground"><span class="i18n-en">Family</span><span class="i18n-zh">家庭</span></p>
+        <p class="mt-2 text-sm font-bold">{family?.name ?? account.display_name}</p>
+      </div>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <p class="text-xs font-bold uppercase text-muted-foreground"><span class="i18n-en">Playback history</span><span class="i18n-zh">播放歷史</span></p>
+        <h1 class="app-title"><span class="i18n-en">Calendar</span><span class="i18n-zh">日曆</span></h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span class="i18n-en">Review playback activity by date, location, video slot, and machine ID for {family?.name ?? "this family"}. Dates use Tainan, Taiwan time.</span>
+          <span class="i18n-zh">以台灣台南時間，依日期、地點、影片槽位和機器 ID 查看 {family?.name ?? "此家庭"} 的播放活動。</span>
+        </p>
+      </header>
+
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Month playbacks</span><span class="i18n-zh">本月播放</span></p>
+          <p class="mt-2 text-2xl font-bold">{totalPlays}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Active dates</span><span class="i18n-zh">活躍日期</span></p>
+          <p class="mt-2 text-2xl font-bold">{activeDays}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Busiest day</span><span class="i18n-zh">最忙日期</span></p>
+          <p class="mt-2 text-2xl font-bold">{mostActiveDay ? mostActiveDay.play_count : 0}</p>
+          <p class="mt-1 text-xs text-muted-foreground">{mostActiveDay?.played_date ?? "No playback yet"}</p>
+        </div>
+      </div>
+
+      <CalendarPlaybackHistory
+        client:load
+        rows={logs}
+        locations={locations}
+        initialMonth={month}
+        initialSelectedDate={selectedDate}
+      />
+    </section>
+  </main>
 </BaseLayout>
