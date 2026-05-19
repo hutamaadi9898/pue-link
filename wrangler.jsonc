@@ -1,6 +1,8 @@
 {
 	"compatibility_date": "2026-05-19",
-	"compatibility_flags": ["global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"global_fetch_strictly_public"
+	],
 	"name": "pue-link",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
