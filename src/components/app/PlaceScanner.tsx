@@ -54,7 +54,7 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
   const streamRef = useRef<MediaStream | null>(null);
   const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
   const detectedTokenRef = useRef<string | null>(null);
-  const canUseCamera = typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
+  const [isRequestingCamera, setIsRequestingCamera] = useState(false);
 
   async function submitScan(nextToken = token) {
     const barcodeToken = nextToken.trim();
@@ -99,18 +99,36 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
   }
 
   async function startCamera() {
-    if (!canUseCamera || isScanning || !videoRef.current) return;
+    if (isScanning || isRequestingCamera || !videoRef.current) return;
 
     setCameraMessage(null);
     setError(null);
+    setIsRequestingCamera(true);
 
     try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("unsupported");
+      }
+
+      setCameraMessage(message("Requesting camera permission...", "正在请求摄像头权限..."));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      streamRef.current = stream;
       setIsScanning(true);
+      setCameraMessage(message("Camera is active. Point it at the bracelet QR code.", "摄像头已开启。请对准手环二维码。"));
+
       const { BrowserMultiFormatReader } = await import("@zxing/browser");
       const reader = new BrowserMultiFormatReader();
 
-      zxingControlsRef.current = await reader.decodeFromVideoDevice(
-        undefined,
+      zxingControlsRef.current = await reader.decodeFromStream(
+        stream,
         videoRef.current,
         (scanResult, _scanError, controls) => {
           const rawValue = scanResult?.getText()?.trim();
@@ -123,9 +141,21 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
           void submitScan(rawValue);
         }
       );
-    } catch {
-      setCameraMessage(message("Camera scanner is unavailable in this browser. Enter the token manually.", "此浏览器无法使用摄像头扫描。请手动输入令牌。"));
+    } catch (cameraError) {
+      const errorName = cameraError instanceof DOMException ? cameraError.name : "";
+      const denied = errorName === "NotAllowedError" || errorName === "PermissionDeniedError";
+      const unavailable = errorName === "NotFoundError" || errorName === "DevicesNotFoundError";
+
+      setCameraMessage(
+        denied
+          ? message("Camera permission was blocked. Allow camera access in the browser site settings, then tap Camera again.", "摄像头权限已被阻止。请在浏览器网站设置中允许摄像头，然后再次点击摄像头。")
+          : unavailable
+            ? message("No camera was found on this device. Enter the token manually.", "此设备未找到摄像头。请手动输入令牌。")
+            : message("Camera scanner is unavailable in this browser. Enter the token manually.", "此浏览器无法使用摄像头扫描。请手动输入令牌。")
+      );
       stopCamera();
+    } finally {
+      setIsRequestingCamera(false);
     }
   }
 
@@ -201,9 +231,9 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
                 if (event.key === "Enter") void submitScan();
               }}
             />
-            <Button type="button" variant="secondary" onClick={startCamera} disabled={!canUseCamera || isScanning || isSubmitting}>
-              <Camera className="size-4" />
-              <span className="i18n-en">Camera</span><span className="i18n-zh">摄像头</span>
+            <Button type="button" variant="secondary" onClick={startCamera} disabled={isScanning || isSubmitting || isRequestingCamera}>
+              {isRequestingCamera ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+              <span className="i18n-en">{isRequestingCamera ? "Requesting..." : "Camera"}</span><span className="i18n-zh">{isRequestingCamera ? "请求中..." : "摄像头"}</span>
             </Button>
             <Button type="button" onClick={() => submitScan()} disabled={!token.trim() || isSubmitting}>
               {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
