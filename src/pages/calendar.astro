@@ -6,12 +6,12 @@ const account = Astro.locals.currentAccount;
 export const prerender = false;
 ---
 
-<BaseLayout title="Kalender - Pue Link">
+<BaseLayout title="Calendar - Pue Link">
   <AppShell
     client:load
-    title="Kalender"
-    eyebrow="Riwayat playback"
-    description="Telusuri tanggal, lokasi, dan video yang pernah diputar oleh mesin publik."
+    title="Calendar"
+    eyebrow="Playback history"
+    description="Browse dates, locations, and videos played by public kiosks."
     accountName={account?.display_name}
     accountRole={account?.role}
   />

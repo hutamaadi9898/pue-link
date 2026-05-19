@@ -1,19 +1,285 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount;
+
+const [familiesResult, locationsResult, devicesResult, accountsResult, slotPairsResult] = await Promise.all([
+  env.DB.prepare(`select id, name from families order by created_at desc`).all<{ id: string; name: string }>(),
+  env.DB.prepare(
+    `select l.id, l.name, l.kind, l.address, l.overuse_threshold,
+            count(a.id) as public_accounts
+     from locations l
+     left join accounts a on a.location_id = l.id and a.role = 'public_place' and a.is_active = 1
+     where l.is_active = 1
+     group by l.id
+     order by l.created_at desc`
+  ).all<{ id: string; name: string; kind: string | null; address: string | null; overuse_threshold: number; public_accounts: number }>(),
+  env.DB.prepare(
+    `select d.id, d.family_id, d.name, d.barcode_token, f.name as family_name
+     from devices d
+     join families f on f.id = d.family_id
+     where d.is_active = 1
+     order by d.created_at desc`
+  ).all<{ id: string; family_id: string; name: string; barcode_token: string; family_name: string }>(),
+  env.DB.prepare(
+    `select a.id, a.role, a.email, a.display_name, a.family_id, a.location_id, a.device_id,
+            f.name as family_name, l.name as location_name, d.name as device_name
+     from accounts a
+     left join families f on f.id = a.family_id
+     left join locations l on l.id = a.location_id
+     left join devices d on d.id = a.device_id
+     where a.is_active = 1
+     order by a.role, a.created_at desc`
+  ).all<{
+    id: string;
+    role: string;
+    email: string;
+    display_name: string;
+    family_id: string | null;
+    location_id: string | null;
+    device_id: string | null;
+    family_name: string | null;
+    location_name: string | null;
+    device_name: string | null;
+  }>(),
+  env.DB.prepare(
+    `select f.name as family_name, l.name as location_name, count(vs.id) as slot_count
+     from families f
+     cross join locations l
+     left join video_slots vs on vs.family_id = f.id and vs.location_id = l.id
+     where l.is_active = 1
+     group by f.id, l.id
+     order by f.name, l.name`
+  ).all<{ family_name: string; location_name: string; slot_count: number }>()
+]);
+
+const families = familiesResult.results ?? [];
+const locations = locationsResult.results ?? [];
+const devices = devicesResult.results ?? [];
+const appAccounts = accountsResult.results ?? [];
+const slotPairs = slotPairsResult.results ?? [];
+
+function roleLabel(role: string) {
+  const labels: Record<string, string> = {
+    super_admin: "Super admin",
+    family_member: "Family",
+    device: "Device",
+    public_place: "Kiosk"
+  };
+  return labels[role] ?? role;
+}
 ---
 
 <BaseLayout title="Admin - Pue Link">
-  <AppShell
-    client:load
-    variant="admin"
-    title="Setup demo"
-    eyebrow="Super admin"
-    description="Kelola keluarga, akun publik, perangkat gelang, lokasi, dan slot demo dari satu layar."
-    accountName={account?.display_name}
-    accountRole={account?.role}
-  />
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4">
+        <p class="font-bold">Pue Link</p>
+        <p class="mt-1 text-xs text-muted-foreground">Super admin</p>
+      </div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link app-nav-link-active" href="/admin">Admin</a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+      </nav>
+      <div class="mt-6 rounded-md border bg-background p-3">
+        <p class="text-xs font-semibold uppercase text-muted-foreground"><span class="i18n-en">Active account</span><span class="i18n-zh">当前账号</span></p>
+        <p class="mt-2 text-sm font-bold">{account?.display_name}</p>
+      </div>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <p class="text-xs font-bold uppercase text-muted-foreground">Super admin</p>
+        <h1 class="app-title">Setup demo</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span class="i18n-en">Prepare families, member accounts, bracelet devices, public locations, kiosk accounts, and three video slots without manual database edits.</span>
+          <span class="i18n-zh">无需手动编辑数据库，即可准备家庭、成员账号、手环设备、公共地点、自助机账号和三个视频槽位。</span>
+        </p>
+      </header>
+
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Families</span><span class="i18n-zh">家庭</span></p>
+          <p class="mt-2 text-2xl font-bold">{families.length}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Active locations</span><span class="i18n-zh">活跃地点</span></p>
+          <p class="mt-2 text-2xl font-bold">{locations.length}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Devices</span><span class="i18n-zh">设备</span></p>
+          <p class="mt-2 text-2xl font-bold">{devices.length}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">App accounts</span><span class="i18n-zh">应用账号</span></p>
+          <p class="mt-2 text-2xl font-bold">{appAccounts.length}</p>
+        </div>
+      </div>
+
+      <div class="grid gap-5 xl:grid-cols-2">
+        <section class="app-panel">
+          <h2 class="font-bold"><span class="i18n-en">Families</span><span class="i18n-zh">家庭</span></h2>
+          <form class="mt-4 grid gap-3" method="post" action="/api/admin/families">
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="name" placeholder="Family name" required />
+            <button class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit"><span class="i18n-en">Save family</span><span class="i18n-zh">保存家庭</span></button>
+          </form>
+          <div class="mt-5 grid gap-2">
+            {families.map((family) => (
+              <form class="grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-[1fr_auto]" method="post" action="/api/admin/families">
+                <input type="hidden" name="id" value={family.id} />
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="name" value={family.name} aria-label="Family name" />
+                <button class="h-9 rounded-md border px-3 text-sm font-semibold" type="submit">Update</button>
+              </form>
+            ))}
+          </div>
+        </section>
+
+        <section class="app-panel">
+          <h2 class="font-bold"><span class="i18n-en">Family member account</span><span class="i18n-zh">家庭成员账号</span></h2>
+          <form class="mt-4 grid gap-3" method="post" action="/api/admin/accounts">
+            <input type="hidden" name="role" value="family_member" />
+            <select class="h-10 rounded-md border bg-background px-3 text-sm" name="family_id" required>
+              <option value="">Choose family</option>
+              {families.map((family) => <option value={family.id}>{family.name}</option>)}
+            </select>
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="display_name" placeholder="Member name" required />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="email" type="email" placeholder="email@demo.test" required />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="password" type="password" placeholder="Password demo (default password123)" />
+            <button class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit"><span class="i18n-en">Save family account</span><span class="i18n-zh">保存家庭账号</span></button>
+          </form>
+        </section>
+      </div>
+
+      <div class="grid gap-5 xl:grid-cols-2">
+        <section class="app-panel">
+          <h2 class="font-bold"><span class="i18n-en">Bracelet device</span><span class="i18n-zh">手环设备</span></h2>
+          <form class="mt-4 grid gap-3" method="post" action="/api/admin/devices">
+            <select class="h-10 rounded-md border bg-background px-3 text-sm" name="family_id" required>
+              <option value="">Choose family</option>
+              {families.map((family) => <option value={family.id}>{family.name}</option>)}
+            </select>
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="name" placeholder="Device name" required />
+            <input class="h-10 rounded-md border bg-background px-3 font-mono text-sm" name="barcode_token" placeholder="Leave blank for automatic token" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="account_name" placeholder="Device account name" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="account_email" type="email" placeholder="Device account email" />
+            <button class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit"><span class="i18n-en">Create device</span><span class="i18n-zh">创建设备</span></button>
+          </form>
+          <div class="mt-5 grid gap-2">
+            {devices.map((device) => (
+              <form class="grid gap-2 rounded-md border bg-background p-3" method="post" action="/api/admin/devices">
+                <input type="hidden" name="id" value={device.id} />
+                <select class="h-9 rounded-md border bg-card px-3 text-sm" name="family_id" required>
+                  {families.map((family) => <option value={family.id} selected={family.id === device.family_id}>{family.name}</option>)}
+                </select>
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="name" value={device.name} aria-label="Device name" />
+                <input class="h-9 rounded-md border bg-card px-3 font-mono text-xs" name="barcode_token" value={device.barcode_token} aria-label="Token barcode" />
+                <button class="h-9 rounded-md border px-3 text-sm font-semibold" type="submit"><span class="i18n-en">Update device</span><span class="i18n-zh">更新设备</span></button>
+              </form>
+            ))}
+          </div>
+        </section>
+
+        <section class="app-panel">
+          <h2 class="font-bold"><span class="i18n-en">Locations and kiosk accounts</span><span class="i18n-zh">地点和自助机账号</span></h2>
+          <form class="mt-4 grid gap-3" method="post" action="/api/admin/locations">
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="name" placeholder="Location name" required />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="kind" placeholder="Type, for example minimarket" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="address" placeholder="Address/demo note" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="overuse_threshold" type="number" min="1" value="5" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="account_name" placeholder="Kiosk account name" />
+            <input class="h-10 rounded-md border bg-background px-3 text-sm" name="account_email" type="email" placeholder="Email akun kiosk" />
+            <button class="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit"><span class="i18n-en">Save location</span><span class="i18n-zh">保存地点</span></button>
+          </form>
+          <div class="mt-5 grid gap-2">
+            {locations.map((location) => (
+              <form class="grid gap-2 rounded-md border bg-background p-3" method="post" action="/api/admin/locations">
+                <input type="hidden" name="id" value={location.id} />
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="name" value={location.name} aria-label="Location name" />
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="kind" value={location.kind ?? ""} aria-label="Location type" />
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="address" value={location.address ?? ""} aria-label="Location address" />
+                <input class="h-9 rounded-md border bg-card px-3 text-sm" name="overuse_threshold" type="number" min="1" value={location.overuse_threshold} aria-label="Refresh limit" />
+                <button class="h-9 rounded-md border px-3 text-sm font-semibold" type="submit"><span class="i18n-en">Update location</span><span class="i18n-zh">更新地点</span></button>
+              </form>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section class="app-panel">
+        <h2 class="font-bold"><span class="i18n-en">Accounts and bindings</span><span class="i18n-zh">账号和绑定</span></h2>
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full min-w-[620px] text-left text-sm">
+            <thead class="border-b text-xs uppercase text-muted-foreground">
+              <tr>
+                <th class="py-3 pr-3"><span class="i18n-en">Account</span><span class="i18n-zh">账号</span></th>
+                <th class="py-3 pr-3">Role</th>
+                <th class="py-3 pr-3"><span class="i18n-en">Family</span><span class="i18n-zh">家庭</span></th>
+                <th class="py-3 pr-3"><span class="i18n-en">Location</span><span class="i18n-zh">地点</span></th>
+                <th class="py-3 pr-3"><span class="i18n-en">Device</span><span class="i18n-zh">设备</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {appAccounts.map((item) => (
+                <tr class="border-b last:border-0">
+                  <td class="py-3 pr-3">
+                    <p class="font-semibold">{item.display_name}</p>
+                    <p class="text-xs text-muted-foreground">{item.email}</p>
+                  </td>
+                  <td class="py-3 pr-3">{roleLabel(item.role)}</td>
+                  <td class="py-3 pr-3 text-muted-foreground">{item.family_name ?? "-"}</td>
+                  <td class="py-3 pr-3 text-muted-foreground">{item.location_name ?? "-"}</td>
+                  <td class="py-3 pr-3 text-muted-foreground">{item.device_name ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-5 grid gap-3">
+          {appAccounts.map((item) => (
+            <form class="grid min-w-0 gap-2 rounded-md border bg-background p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_9rem_9rem_9rem_9rem_auto]" method="post" action="/api/admin/accounts">
+              <input type="hidden" name="id" value={item.id} />
+              <input class="h-9 rounded-md border bg-card px-3 text-sm" name="display_name" value={item.display_name} aria-label="Account name" />
+              <input class="h-9 rounded-md border bg-card px-3 text-sm" name="email" type="email" value={item.email} aria-label="Account email" />
+              <select class="h-9 rounded-md border bg-card px-3 text-sm" name="role" aria-label="Account role">
+                {["super_admin", "family_member", "device", "public_place"].map((role) => <option value={role} selected={role === item.role}>{roleLabel(role)}</option>)}
+              </select>
+              <select class="h-9 rounded-md border bg-card px-3 text-sm" name="family_id" aria-label="Account family">
+                <option value="">-</option>
+                {families.map((family) => <option value={family.id} selected={family.id === item.family_id}>{family.name}</option>)}
+              </select>
+              <select class="h-9 rounded-md border bg-card px-3 text-sm" name="location_id" aria-label="Account location">
+                <option value="">-</option>
+                {locations.map((location) => <option value={location.id} selected={location.id === item.location_id}>{location.name}</option>)}
+              </select>
+              <select class="h-9 rounded-md border bg-card px-3 text-sm" name="device_id" aria-label="Account device">
+                <option value="">-</option>
+                {devices.map((device) => <option value={device.id} selected={device.id === item.device_id}>{device.name}</option>)}
+              </select>
+              <button class="h-9 rounded-md border px-3 text-sm font-semibold" type="submit">Update</button>
+            </form>
+          ))}
+        </div>
+      </section>
+
+      <section class="app-panel">
+        <h2 class="font-bold"><span class="i18n-en">Family-location slot readiness</span><span class="i18n-zh">家庭地点槽位准备情况</span></h2>
+        <div class="mt-4 grid gap-2 md:grid-cols-2">
+          {slotPairs.map((pair) => (
+            <div class="flex items-center justify-between rounded-md border bg-background p-3">
+              <div>
+                <p class="text-sm font-semibold">{pair.family_name}</p>
+                <p class="text-xs text-muted-foreground">{pair.location_name}</p>
+              </div>
+              <span class={pair.slot_count === 3 ? "rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" : "rounded-md bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive"}>
+                {pair.slot_count}/3 slot
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </section>
+  </main>
 </BaseLayout>

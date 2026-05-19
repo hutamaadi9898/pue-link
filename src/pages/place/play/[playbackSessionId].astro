@@ -1,0 +1,38 @@
+---
+import { env } from "cloudflare:workers";
+import { PlacePlayer } from "@/components/app/PlacePlayer";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getPlaybackSession, isPlaybackSessionExpired } from "@/lib/place-playback";
+
+export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const sessionId = Astro.params.playbackSessionId;
+
+if (!sessionId) {
+  return new Response("Invalid playback session.", { status: 400 });
+}
+
+const session = await getPlaybackSession(env, { sessionId, accountId: account.id });
+
+if (!session) {
+  return new Response("Playback session not found.", { status: 404 });
+}
+
+if (isPlaybackSessionExpired(session)) {
+  return new Response("Playback session has expired. Please scan again.", { status: 410 });
+}
+---
+
+<BaseLayout title={`${session.title} - Pue Link`}>
+  <PlacePlayer
+    client:load
+    title={session.title}
+    description={session.description}
+    familyName={session.family_name}
+    locationName={session.location_name}
+    deviceName={session.device_name}
+    slotNumber={session.slot_number}
+    streamUrl={`/api/place/play/${session.id}/stream`}
+  />
+</BaseLayout>

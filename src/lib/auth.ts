@@ -6,7 +6,7 @@ export function createAuth(env: Env) {
     database: env.DB,
     secret: env.BETTER_AUTH_SECRET || "pue-link-local-demo-secret-change-me",
     baseURL: {
-      allowedHosts: ["localhost:4321", "127.0.0.1:4321", "*.workers.dev"],
+      allowedHosts: ["localhost:4321", "127.0.0.1:4321", "localhost:4322", "127.0.0.1:4322", "*.workers.dev"],
       fallback: env.BETTER_AUTH_URL || "http://127.0.0.1:4321",
       protocol: "auto"
     },
@@ -14,6 +14,8 @@ export function createAuth(env: Env) {
       env.BETTER_AUTH_URL,
       "http://127.0.0.1:4321",
       "http://localhost:4321",
+      "http://127.0.0.1:4322",
+      "http://localhost:4322",
       "https://*.workers.dev"
     ].filter(Boolean),
     emailAndPassword: {
@@ -99,4 +101,14 @@ export function requireRole(account: CurrentAccount | null, roles: AppRole | App
   }
 
   return account;
+}
+
+export async function requireRequestRole(env: Env, request: Request, roles: AppRole | AppRole[]) {
+  const session = await getSessionFromRequest(env, request);
+  if (!session?.user?.id) {
+    throw new Response("Unauthorized", { status: 401 });
+  }
+
+  const account = await getAccountByAuthUserId(env, session.user.id);
+  return requireRole(account, roles);
 }

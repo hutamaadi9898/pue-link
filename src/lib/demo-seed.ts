@@ -1,4 +1,4 @@
-import { createAuth } from "@/lib/auth";
+import { ensureAuthUser } from "@/lib/demo-admin";
 import { nowIso } from "@/lib/time";
 
 const DEMO_PASSWORD = "password123";
@@ -8,38 +8,22 @@ const DEVICE_EMAIL = "device-oma@puelink.test";
 const MINIMARKET_EMAIL = "minimarket@puelink.test";
 const TAMAN_EMAIL = "taman@puelink.test";
 
-async function ensureAuthUser(env: Env, email: string, name: string) {
-  const existing = await env.DB.prepare(`select id from user where email = ? limit 1`).bind(email).first<{ id: string }>();
-  if (existing) return existing.id;
-
-  const auth = createAuth(env);
-  const created = await auth.api.signUpEmail({
-    body: {
-      email,
-      name,
-      password: DEMO_PASSWORD
-    }
-  });
-
-  return created.user.id;
-}
-
 export async function seedDemoData(env: Env) {
   const db = env.DB;
   const timestamp = nowIso();
   const authUsers = {
-    superAdmin: await ensureAuthUser(env, SUPER_ADMIN_EMAIL, "Super Admin Demo"),
-    familyMember: await ensureAuthUser(env, FAMILY_EMAIL, "Anggota Keluarga Demo"),
-    device: await ensureAuthUser(env, DEVICE_EMAIL, "Gelang Demo"),
-    minimarket: await ensureAuthUser(env, MINIMARKET_EMAIL, "Mesin Minimarket"),
-    taman: await ensureAuthUser(env, TAMAN_EMAIL, "Mesin Taman")
+    superAdmin: await ensureAuthUser(env, SUPER_ADMIN_EMAIL, "Super Admin Demo", DEMO_PASSWORD),
+    familyMember: await ensureAuthUser(env, FAMILY_EMAIL, "Demo Family Member", DEMO_PASSWORD),
+    device: await ensureAuthUser(env, DEVICE_EMAIL, "Gelang Demo", DEMO_PASSWORD),
+    minimarket: await ensureAuthUser(env, MINIMARKET_EMAIL, "Minimarket Kiosk", DEMO_PASSWORD),
+    taman: await ensureAuthUser(env, TAMAN_EMAIL, "Park Kiosk", DEMO_PASSWORD)
   };
 
   await db.batch([
     db.prepare(
       `insert or ignore into families (id, name, created_at, updated_at)
        values (?, ?, ?, ?)`
-    ).bind("fam_demo", "Keluarga Demo", timestamp, timestamp),
+    ).bind("fam_demo", "Demo Family", timestamp, timestamp),
     db.prepare(
       `insert or ignore into devices (id, family_id, name, barcode_token, is_active, created_at, updated_at)
        values (?, ?, ?, ?, 1, ?, ?)`
@@ -61,7 +45,7 @@ export async function seedDemoData(env: Env) {
       `insert into accounts (id, auth_user_id, role, email, display_name, family_id, is_active, created_at, updated_at)
        values (?, ?, 'family_member', ?, ?, ?, 1, ?, ?)
        on conflict(id) do update set auth_user_id = excluded.auth_user_id, email = excluded.email, display_name = excluded.display_name, family_id = excluded.family_id, updated_at = excluded.updated_at`
-    ).bind("acct_family_member", authUsers.familyMember, FAMILY_EMAIL, "Anggota Keluarga Demo", "fam_demo", timestamp, timestamp),
+    ).bind("acct_family_member", authUsers.familyMember, FAMILY_EMAIL, "Demo Family Member", "fam_demo", timestamp, timestamp),
     db.prepare(
       `insert into accounts (id, auth_user_id, role, email, display_name, family_id, device_id, is_active, created_at, updated_at)
        values (?, ?, 'device', ?, ?, ?, ?, 1, ?, ?)
@@ -71,12 +55,12 @@ export async function seedDemoData(env: Env) {
       `insert into accounts (id, auth_user_id, role, email, display_name, location_id, is_active, created_at, updated_at)
        values (?, ?, 'public_place', ?, ?, ?, 1, ?, ?)
        on conflict(id) do update set auth_user_id = excluded.auth_user_id, email = excluded.email, display_name = excluded.display_name, location_id = excluded.location_id, updated_at = excluded.updated_at`
-    ).bind("acct_place_minimarket", authUsers.minimarket, MINIMARKET_EMAIL, "Mesin Minimarket", "loc_minimarket", timestamp, timestamp),
+    ).bind("acct_place_minimarket", authUsers.minimarket, MINIMARKET_EMAIL, "Minimarket Kiosk", "loc_minimarket", timestamp, timestamp),
     db.prepare(
       `insert into accounts (id, auth_user_id, role, email, display_name, location_id, is_active, created_at, updated_at)
        values (?, ?, 'public_place', ?, ?, ?, 1, ?, ?)
        on conflict(id) do update set auth_user_id = excluded.auth_user_id, email = excluded.email, display_name = excluded.display_name, location_id = excluded.location_id, updated_at = excluded.updated_at`
-    ).bind("acct_place_taman", authUsers.taman, TAMAN_EMAIL, "Mesin Taman", "loc_taman", timestamp, timestamp)
+    ).bind("acct_place_taman", authUsers.taman, TAMAN_EMAIL, "Park Kiosk", "loc_taman", timestamp, timestamp)
   ]);
 
   const slotStatements = ["loc_minimarket", "loc_taman"].flatMap((locationId) =>

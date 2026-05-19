@@ -1,18 +1,139 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { FALLBACK_OVERUSE_THRESHOLD, getGlobalOveruseThreshold } from "@/lib/thresholds";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const familyId = account.family_id!;
+const saved = Astro.url.searchParams.get("saved") === "1";
+
+const [globalThreshold, locationsResult, countsResult] = await Promise.all([
+  getGlobalOveruseThreshold(env),
+  env.DB.prepare(
+    `select id, name, kind, overuse_threshold
+     from locations
+     where is_active = 1
+     order by name`
+  ).all<{ id: string; name: string; kind: string | null; overuse_threshold: number }>(),
+  env.DB.prepare(
+    `select
+       count(*) as videos,
+       sum(case when needs_refresh = 1 then 1 else 0 end) as needs_refresh
+     from videos
+     where family_id = ?`
+  ).bind(familyId).first<{ videos: number; needs_refresh: number | null }>()
+]);
+
+const locations = locationsResult.results ?? [];
+const needsRefresh = countsResult?.needs_refresh ?? 0;
 ---
 
-<BaseLayout title="Pengaturan - Pue Link">
-  <AppShell
-    client:load
-    title="Pengaturan"
-    eyebrow="Threshold dan notifikasi"
-    description="Atur batas pemutaran dan status notifikasi keluarga untuk demo berikutnya."
-    accountName={account?.display_name}
-    accountRole={account?.role}
-  />
+<BaseLayout title="Settings - Pue Link">
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4"><p class="font-bold">Pue Link</p><p class="mt-1 text-xs text-muted-foreground"><span class="i18n-en">Family dashboard</span><span class="i18n-zh">家庭看板</span></p></div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link" href="/dashboard"><span class="i18n-en">Home</span><span class="i18n-zh">首页</span></a>
+        <a class="app-nav-link" href="/locations"><span class="i18n-en">Locations</span><span class="i18n-zh">地点</span></a>
+        <a class="app-nav-link" href="/calendar"><span class="i18n-en">Calendar</span><span class="i18n-zh">日历</span></a>
+        <a class="app-nav-link app-nav-link-active" href="/settings"><span class="i18n-en">Settings</span><span class="i18n-zh">设置</span></a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+      </nav>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <p class="text-xs font-bold uppercase text-muted-foreground"><span class="i18n-en">Settings</span><span class="i18n-zh">设置</span></p>
+        <h1 class="app-title"><span class="i18n-en">Refresh thresholds</span><span class="i18n-zh">更新上限</span></h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span class="i18n-en">The app resolves limits in this order: video override, location threshold, global fallback, then {FALLBACK_OVERUSE_THRESHOLD}.</span>
+          <span class="i18n-zh">应用按以下顺序解析上限：视频覆盖、地点上限、全局默认，然后是 {FALLBACK_OVERUSE_THRESHOLD}。</span>
+        </p>
+      </header>
+
+      {saved && (
+        <p class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          <span class="i18n-en">Settings saved.</span><span class="i18n-zh">设置已保存。</span>
+        </p>
+      )}
+
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Uploaded videos</span><span class="i18n-zh">已上传视频</span></p>
+          <p class="mt-2 text-2xl font-bold">{countsResult?.videos ?? 0}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Needs refresh</span><span class="i18n-zh">需更新</span></p>
+          <p class="mt-2 text-2xl font-bold text-destructive">{needsRefresh}</p>
+        </div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm">
+          <p class="text-sm text-muted-foreground"><span class="i18n-en">Global fallback</span><span class="i18n-zh">全局默认</span></p>
+          <p class="mt-2 text-2xl font-bold">{globalThreshold}</p>
+        </div>
+      </div>
+
+      <form class="app-panel grid gap-5" method="post" action="/api/settings/thresholds">
+        <div>
+          <label class="text-sm font-bold" for="global_threshold"><span class="i18n-en">Global fallback threshold</span><span class="i18n-zh">全局默认上限</span></label>
+          <p class="mt-1 text-sm text-muted-foreground">
+            <span class="i18n-en">Used only when a video and its location do not provide a valid limit.</span>
+            <span class="i18n-zh">仅在视频和地点都没有有效上限时使用。</span>
+          </p>
+          <input
+            id="global_threshold"
+            class="mt-3 h-10 w-full max-w-xs rounded-md border bg-background px-3 text-sm"
+            name="global_threshold"
+            type="number"
+            min="1"
+            value={globalThreshold}
+          />
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-left text-sm">
+            <thead class="border-b text-xs uppercase text-muted-foreground">
+              <tr>
+                <th class="py-3 pr-3"><span class="i18n-en">Location</span><span class="i18n-zh">地点</span></th>
+                <th class="py-3 pr-3"><span class="i18n-en">Type</span><span class="i18n-zh">类型</span></th>
+                <th class="py-3 pr-3"><span class="i18n-en">Threshold</span><span class="i18n-zh">上限</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {locations.map((location) => (
+                <tr class="border-b last:border-0">
+                  <td class="py-3 pr-3 font-semibold">
+                    {location.name}
+                    <input type="hidden" name="location_id" value={location.id} />
+                  </td>
+                  <td class="py-3 pr-3 text-muted-foreground">{location.kind ?? "Public location"}</td>
+                  <td class="py-3 pr-3">
+                    <input
+                      class="h-9 w-24 rounded-md border bg-background px-3 text-sm"
+                      name={`location_threshold_${location.id}`}
+                      type="number"
+                      min="1"
+                      value={location.overuse_threshold}
+                      aria-label={`Threshold for ${location.name}`}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs leading-5 text-muted-foreground">
+            <span class="i18n-en">At 4/5 plays, slots show "Near limit"; at 5/5, playback marks the video as "Needs refresh".</span>
+            <span class="i18n-zh">播放 4/5 次时显示“接近上限”；播放 5/5 次时标记为“需更新”。</span>
+          </p>
+          <button class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm" type="submit">
+            <span class="i18n-en">Save settings</span><span class="i18n-zh">保存设置</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
 </BaseLayout>

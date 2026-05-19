@@ -1,0 +1,92 @@
+---
+import { env } from "cloudflare:workers";
+import { LocationSlots } from "@/components/app/LocationSlots";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { ensureSlotsForFamilyLocation } from "@/lib/demo-admin";
+import { FALLBACK_OVERUSE_THRESHOLD } from "@/lib/thresholds";
+
+export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const familyId = account.family_id!;
+const locationId = Astro.params.id!;
+
+const location = await env.DB.prepare(
+  `select l.id, l.name, l.kind, l.address, l.overuse_threshold,
+          count(a.id) as public_accounts
+   from locations l
+   left join accounts a on a.location_id = l.id and a.role = 'public_place' and a.is_active = 1
+   where l.id = ? and l.is_active = 1
+   group by l.id
+   limit 1`
+).bind(locationId).first<{ id: string; name: string; kind: string | null; address: string | null; overuse_threshold: number; public_accounts: number }>();
+
+if (!location) {
+  return new Response("Location not found.", { status: 404 });
+}
+
+await ensureSlotsForFamilyLocation(env, familyId, locationId);
+
+const slotsResult = await env.DB.prepare(
+  `select vs.id, vs.slot_number, v.id as video_id, v.title, v.description, v.play_count,
+          v.file_size, v.mime_type, v.duration_seconds, v.last_played_at, v.needs_refresh,
+          coalesce(v.overuse_threshold, l.overuse_threshold, cast(s.value as integer), ?) as threshold
+   from video_slots vs
+   join locations l on l.id = vs.location_id
+   left join settings s on s.key = 'global_overuse_threshold'
+   left join videos v on v.id = vs.video_id and v.family_id = ?
+   where vs.family_id = ? and vs.location_id = ?
+   order by vs.slot_number`
+).bind(FALLBACK_OVERUSE_THRESHOLD, familyId, familyId, locationId).all<{
+  id: string;
+  slot_number: number;
+  video_id: string | null;
+  title: string | null;
+  description: string | null;
+  play_count: number | null;
+  file_size: number | null;
+  mime_type: string | null;
+  duration_seconds: number | null;
+  last_played_at: string | null;
+  needs_refresh: number | null;
+  threshold: number;
+}>();
+
+const slots = slotsResult.results ?? [];
+---
+
+<BaseLayout title={`${location.name} - Pue Link`}>
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4"><p class="font-bold">Pue Link</p><p class="mt-1 text-xs text-muted-foreground"><span class="i18n-en">Family dashboard</span><span class="i18n-zh">家庭看板</span></p></div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link" href="/dashboard"><span class="i18n-en">Home</span><span class="i18n-zh">首页</span></a>
+        <a class="app-nav-link app-nav-link-active" href="/locations"><span class="i18n-en">Locations</span><span class="i18n-zh">地点</span></a>
+        <a class="app-nav-link" href="/calendar"><span class="i18n-en">Calendar</span><span class="i18n-zh">日历</span></a>
+        <a class="app-nav-link" href="/settings"><span class="i18n-en">Settings</span><span class="i18n-zh">设置</span></a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+      </nav>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <a class="text-sm font-semibold text-primary" href="/locations"><span class="i18n-en">Back to locations</span><span class="i18n-zh">返回地点</span></a>
+        <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase text-muted-foreground">{location.kind ?? "Public location"}</p>
+            <h1 class="app-title">{location.name}</h1>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{location.address ?? "No demo address yet."}</p>
+          </div>
+          <div class="grid gap-2 text-sm">
+            <span class="rounded-md border bg-background px-3 py-2 font-semibold"><span class="i18n-en">Refresh limit</span><span class="i18n-zh">更新上限</span>: {location.overuse_threshold} <span class="i18n-en">plays</span><span class="i18n-zh">次播放</span></span>
+            <span class={location.public_accounts > 0 ? "rounded-md bg-emerald-50 px-3 py-2 font-semibold text-emerald-700" : "rounded-md bg-muted px-3 py-2 font-semibold text-muted-foreground"}>
+              {location.public_accounts > 0 ? <><span class="i18n-en">Kiosk account linked</span><span class="i18n-zh">已连接自助机账号</span></> : <><span class="i18n-en">No kiosk account</span><span class="i18n-zh">未连接自助机账号</span></>}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <LocationSlots client:load locationId={location.id} slots={slots} />
+    </section>
+  </main>
+</BaseLayout>

@@ -1,18 +1,89 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { ensureSlotsForFamilyLocation } from "@/lib/demo-admin";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const familyId = account.family_id!;
+
+const allLocations = await env.DB.prepare(`select id from locations where is_active = 1`).all<{ id: string }>();
+await Promise.all((allLocations.results ?? []).map((location) => ensureSlotsForFamilyLocation(env, familyId, location.id)));
+
+const locationsResult = await env.DB.prepare(
+  `select l.id, l.name, l.kind, l.address, l.overuse_threshold,
+          count(vs.id) as slot_count,
+          count(v.id) as video_count,
+          coalesce(sum(v.play_count), 0) as play_count,
+          max(case when a.id is null then 0 else 1 end) as has_public_account
+   from locations l
+   left join video_slots vs on vs.location_id = l.id and vs.family_id = ?
+   left join videos v on v.id = vs.video_id
+   left join accounts a on a.location_id = l.id and a.role = 'public_place' and a.is_active = 1
+   where l.is_active = 1
+   group by l.id
+   order by l.name`
+).bind(familyId).all<{
+  id: string;
+  name: string;
+  kind: string | null;
+  address: string | null;
+  overuse_threshold: number;
+  slot_count: number;
+  video_count: number;
+  play_count: number;
+  has_public_account: number;
+}>();
+
+const locations = locationsResult.results ?? [];
 ---
 
-<BaseLayout title="Lokasi - Pue Link">
-  <AppShell
-    client:load
-    title="Lokasi"
-    eyebrow="Manajemen lokasi"
-    description="Lihat lokasi publik dan tiga slot video yang tersedia untuk setiap lokasi."
-    accountName={account?.display_name}
-    accountRole={account?.role}
-  />
+<BaseLayout title="Locations - Pue Link">
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4"><p class="font-bold">Pue Link</p><p class="mt-1 text-xs text-muted-foreground"><span class="i18n-en">Family dashboard</span><span class="i18n-zh">家庭看板</span></p></div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link" href="/dashboard"><span class="i18n-en">Home</span><span class="i18n-zh">首页</span></a>
+        <a class="app-nav-link app-nav-link-active" href="/locations"><span class="i18n-en">Locations</span><span class="i18n-zh">地点</span></a>
+        <a class="app-nav-link" href="/calendar"><span class="i18n-en">Calendar</span><span class="i18n-zh">日历</span></a>
+        <a class="app-nav-link" href="/settings"><span class="i18n-en">Settings</span><span class="i18n-zh">设置</span></a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+      </nav>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <p class="text-xs font-bold uppercase text-muted-foreground"><span class="i18n-en">Location management</span><span class="i18n-zh">地点管理</span></p>
+        <h1 class="app-title"><span class="i18n-en">Public locations</span><span class="i18n-zh">公共地点</span></h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span class="i18n-en">Each location has three video slots for your family. Access and counts below are scoped to the signed-in family account.</span>
+          <span class="i18n-zh">每个地点为您的家庭提供三个视频槽位。以下访问权限和统计仅限当前登录家庭账号。</span>
+        </p>
+      </header>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        {locations.map((location) => (
+          <a class="rounded-lg border bg-card p-5 shadow-sm transition-colors hover:border-primary/50" href={`/locations/${location.id}`}>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase text-muted-foreground">{location.kind ?? "Public location"}</p>
+                <h2 class="mt-2 text-xl font-bold">{location.name}</h2>
+                <p class="mt-2 text-sm leading-6 text-muted-foreground">{location.address ?? "No demo address yet."}</p>
+              </div>
+              <span class={location.has_public_account ? "rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" : "rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground"}>
+                {location.has_public_account ? <><span class="i18n-en">Kiosk ready</span><span class="i18n-zh">自助机就绪</span></> : <><span class="i18n-en">No kiosk</span><span class="i18n-zh">未绑定自助机</span></>}
+              </span>
+            </div>
+            <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+              <div class="rounded-md border bg-background p-3"><p class="text-lg font-bold">{location.slot_count}</p><p class="text-xs text-muted-foreground">Slots</p></div>
+              <div class="rounded-md border bg-background p-3"><p class="text-lg font-bold">{location.video_count}</p><p class="text-xs text-muted-foreground">Videos</p></div>
+              <div class="rounded-md border bg-background p-3"><p class="text-lg font-bold">{location.play_count}</p><p class="text-xs text-muted-foreground"><span class="i18n-en">Plays</span><span class="i18n-zh">播放</span></p></div>
+            </div>
+            <p class="mt-4 text-xs font-semibold text-muted-foreground"><span class="i18n-en">Location refresh limit:</span><span class="i18n-zh">地点更新上限：</span> {location.overuse_threshold} <span class="i18n-en">plays</span><span class="i18n-zh">次播放</span></p>
+          </a>
+        ))}
+      </div>
+    </section>
+  </main>
 </BaseLayout>

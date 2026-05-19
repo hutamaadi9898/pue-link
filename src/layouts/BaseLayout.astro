@@ -8,7 +8,7 @@ interface Props {
 const { title = "Pue Link" } = Astro.props;
 ---
 
-<html lang="en">
+<html lang="en" data-language="en">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -19,5 +19,30 @@ const { title = "Pue Link" } = Astro.props;
   </head>
   <body>
     <slot />
+    <button
+      class="language-toggle"
+      id="language-toggle"
+      type="button"
+      aria-label="Switch language"
+    >
+      <span class="i18n-en">中文</span>
+      <span class="i18n-zh">English</span>
+    </button>
+    <script is:inline>
+      const root = document.documentElement;
+      const button = document.getElementById("language-toggle");
+      const savedLanguage = localStorage.getItem("pue-link-language") === "zh" ? "zh" : "en";
+
+      function applyLanguage(language) {
+        root.dataset.language = language;
+        root.lang = language === "zh" ? "zh-Hans" : "en";
+        localStorage.setItem("pue-link-language", language);
+      }
+
+      applyLanguage(savedLanguage);
+      button?.addEventListener("click", () => {
+        applyLanguage(root.dataset.language === "zh" ? "en" : "zh");
+      });
+    </script>
   </body>
 </html>

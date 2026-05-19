@@ -1,11 +1,22 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
+import { PlaceScanner } from "@/components/app/PlaceScanner";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
 const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const location = account?.location_id
+  ? await env.DB.prepare(`select id, name from locations where id = ? and is_active = 1 limit 1`)
+      .bind(account.location_id)
+      .first<{ id: string; name: string }>()
+  : null;
+
+if (!account || !location) {
+  return new Response("This kiosk account is not linked to an active location.", { status: 404 });
+}
 ---
 
-<BaseLayout title="Scanner Kiosk - Pue Link">
-  <AppShell client:load variant="place" accountName={account?.display_name} accountRole={account?.role} />
+<BaseLayout title="Kiosk Scanner - Pue Link">
+  <PlaceScanner client:load accountName={account.display_name} locationName={location.name} />
 </BaseLayout>

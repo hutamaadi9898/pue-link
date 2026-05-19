@@ -589,21 +589,21 @@ Checkpoint:
 ## Phase 3A: Super Admin Demo Setup
 
 Goal:
-- [ ] Let super admin prepare the demo without manual database edits.
+- [x] Let super admin prepare the demo without manual database edits.
 
 Tasks:
-- [ ] Build `/admin` overview.
-- [ ] Build family create/edit form.
-- [ ] Build family member account create/edit form.
-- [ ] Build device account create/edit form.
-- [ ] Generate unique device barcode token.
-- [ ] Build location create/edit form.
-- [ ] Build public place account create/edit form.
-- [ ] Bind public place account to a location.
-- [ ] Ensure 3 video slots exist for each family-location pair.
+- [x] Build `/admin` overview.
+- [x] Build family create/edit form.
+- [x] Build family member account create/edit form.
+- [x] Build device account create/edit form.
+- [x] Generate unique device barcode token.
+- [x] Build location create/edit form.
+- [x] Build public place account create/edit form.
+- [x] Bind public place account to a location.
+- [x] Ensure 3 video slots exist for each family-location pair.
 
 Checkpoint:
-- [ ] Super admin can create a complete demo setup:
+- [x] Super admin can create a complete demo setup:
    - Family
    - Family member account
    - Device account
@@ -614,97 +614,97 @@ Checkpoint:
 ## Phase 4: Location Management
 
 Goal:
-- [ ] Let family users see locations and the 3-slot structure.
+- [x] Let family users see locations and the 3-slot structure.
 
 Tasks:
-- [ ] Build `/dashboard` summary cards.
-- [ ] Build `/locations` list.
-- [ ] Build `/locations/:id` detail page.
-- [ ] Ensure every location has 3 slots.
-- [ ] Show whether the location has a configured public place account.
-- [ ] Show location-level threshold setting.
-- [ ] Keep upload/manage actions scoped to the logged-in family.
+- [x] Build `/dashboard` summary cards.
+- [x] Build `/locations` list.
+- [x] Build `/locations/:id` detail page.
+- [x] Ensure every location has 3 slots.
+- [x] Show whether the location has a configured public place account.
+- [x] Show location-level threshold setting.
+- [x] Keep upload/manage actions scoped to the logged-in family.
 
 Checkpoint:
-- [ ] Demo has at least:
+- [x] Demo has at least:
    - Minimarket location
    - Taman location
-- [ ] Each location shows 3 slots.
-- [ ] Family member can manage only their own family's videos for those locations.
+- [x] Each location shows 3 slots.
+- [x] Family member can manage only their own family's videos for those locations.
 
 ## Phase 4A: Device Barcode Emulator
 
 Goal:
-- [ ] Provide the bracelet replacement for the MVP.
+- [x] Provide the bracelet replacement for the MVP.
 
 Tasks:
-- [ ] Build `/device/barcode`.
-- [ ] Render QR code or barcode from `devices.barcode_token`.
-- [ ] Show device/family label for demo clarity.
-- [ ] Add refresh-safe layout suitable for phone screen.
-- [ ] Block all dashboard/admin APIs for device role.
+- [x] Build `/device/barcode`.
+- [x] Render QR code or barcode from `devices.barcode_token`.
+- [x] Show device/family label for demo clarity.
+- [x] Add refresh-safe layout suitable for phone screen.
+- [x] Block all dashboard/admin APIs for device role.
 
 Checkpoint:
-- [ ] Device account displays only its barcode/QR.
+- [x] Device account displays only its barcode/QR.
 - [ ] Public place scanner can read or accept that token.
-- [ ] Device account cannot access family dashboard data.
+- [x] Device account cannot access family dashboard data.
 
 ## Phase 5: Video Upload To R2
 
 Goal:
-- [ ] Upload or replace videos in a location slot.
+- [x] Upload or replace videos in a location slot.
 
 Tasks:
-- [ ] Decide MVP upload strategy:
+- [x] Decide MVP upload strategy:
    - Preferred simple MVP: upload through Astro API route to R2.
    - Later optimization: presigned/direct upload flow.
-- [ ] Add file validation:
+- [x] Add file validation:
    - Accept `video/mp4`, `video/webm`, `video/quicktime` if supported.
    - Enforce MVP max size, for example 50 MB.
-- [ ] Implement `POST /api/locations/:locationId/slots/:slotNumber/video`.
-- [ ] Store object in R2.
-- [ ] Create or replace `videos` row.
-- [ ] Update `video_slots.video_id`.
-- [ ] Reset:
+- [x] Implement `POST /api/locations/:locationId/slots/:slotNumber/video`.
+- [x] Store object in R2.
+- [x] Create or replace `videos` row.
+- [x] Update `video_slots.video_id`.
+- [x] Reset:
    - `play_count = 0`
    - `last_played_at = null`
    - `needs_refresh = 0`
    - `last_overuse_notified_at = null`
-- [ ] Delete old R2 object after replacement succeeds.
-- [ ] Build upload UI per slot:
+- [x] Delete old R2 object after replacement succeeds.
+- [x] Build upload UI per slot:
    - Empty state
    - Upload progress
    - Replace confirmation
    - Error display
 
 Checkpoint:
-- [ ] User can upload 3 videos to a location.
-- [ ] Replacement video resets count.
-- [ ] R2 contains uploaded objects under expected key format.
-- [ ] Slot UI updates after successful upload.
+- [x] User can upload 3 videos to a location.
+- [x] Replacement video resets count.
+- [x] R2 contains uploaded objects under expected key format.
+- [x] Slot UI updates after successful upload.
 
 ## Phase 6: Public Place Scanner And Playback Flow
 
 Goal:
-- [ ] Public place account scans a device barcode and plays the least-used video for that device family at the current location.
+- [x] Public place account scans a device barcode and plays the least-used video for that device family at the current location.
 
 Tasks:
-- [ ] Build `/place/scanner` page.
-- [ ] Add camera scanner if practical for MVP, with manual token input fallback.
-- [ ] Build `POST /api/place/scan`.
-- [ ] Resolve the logged-in public place account to `location_id`.
-- [ ] Resolve scanned `barcode_token` to `device_id` and `family_id`.
-- [ ] Implement selection algorithm:
+- [x] Build `/place/scanner` page.
+- [x] Add camera scanner if practical for MVP, with manual token input fallback.
+- [x] Build `POST /api/place/scan`.
+- [x] Resolve the logged-in public place account to `location_id`.
+- [x] Resolve scanned `barcode_token` to `device_id` and `family_id`.
+- [x] Implement selection algorithm:
    - Active videos only.
    - Matching `family_id`.
    - Matching `location_id`.
    - Lowest `play_count`.
    - Oldest `last_played_at` when tied.
    - Oldest `created_at` when tied.
-- [ ] Increment selected video:
+- [x] Increment selected video:
    - `play_count += 1`
    - `last_played_at = now`
-- [ ] Insert `playback_logs` row with:
+- [x] Insert `playback_logs` row with:
    - `family_id`
    - `location_id`
    - `device_id`
@@ -712,52 +712,52 @@ Tasks:
    - `slot_id`
    - `video_id`
    - `machine_id`
-- [ ] Return playable URL.
-- [ ] Build `/place/play/:playbackSessionId` or inline player state:
+- [x] Return playable URL.
+- [x] Build `/place/play/:playbackSessionId` or inline player state:
    - Loading
    - Playing
    - Ended
    - Replay / next scan button for demo
    - No videos
    - Error
-- [ ] Add optional `machine_id` query/session value:
+- [x] Add optional `machine_id` query/session value:
    - `minimarket-front`
    - `taman-gate`
 
 Checkpoint:
-- [ ] With 3 videos at 0 plays, three scans distribute play counts across all three videos.
-- [ ] After one video replacement, that video is selected first because it has 0 plays.
-- [ ] Calendar logs match scan events.
-- [ ] Public place account at Minimarket plays Minimarket videos for the scanned family.
-- [ ] Public place account at Taman plays Taman videos for the same scanned device/family.
+- [x] With 3 videos at 0 plays, three scans distribute play counts across all three videos.
+- [x] After one video replacement, that video is selected first because it has 0 plays.
+- [x] Calendar logs match scan events.
+- [x] Public place account at Minimarket plays Minimarket videos for the scanned family.
+- [x] Public place account at Taman plays Taman videos for the same scanned device/family.
 
 ## Phase 7: Playback Counts And Refresh Recommendations
 
 Goal:
-- [ ] Surface overused videos and prepare notification trigger.
+- [x] Surface overused videos and prepare notification trigger.
 
 Tasks:
-- [ ] Add threshold resolver:
+- [x] Add threshold resolver:
    - `video.overuse_threshold`
    - else `location.overuse_threshold`
    - else global default 5
-- [ ] After playback increment, compare count to threshold.
-- [ ] Mark `needs_refresh = 1` when threshold is reached.
-- [ ] Store `last_overuse_notified_at` only when notification send succeeds.
-- [ ] Add dashboard widget:
+- [x] After playback increment, compare count to threshold.
+- [x] Mark `needs_refresh = 1` when threshold is reached.
+- [x] Store `last_overuse_notified_at` only when notification send succeeds.
+- [x] Add dashboard widget:
    - Videos needing refresh
    - Location and slot
    - Current play count and threshold
-- [ ] Add slot badge:
+- [x] Add slot badge:
    - Normal
    - Near threshold
    - Needs refresh
-- [ ] Add setting UI for fallback threshold and per-location threshold.
+- [x] Add setting UI for fallback threshold and per-location threshold.
 
 Checkpoint:
-- [ ] At 4/5 plays, UI warns "mendekati batas".
-- [ ] At 5/5 plays, UI recommends replacing video.
-- [ ] Replacing the video clears the recommendation.
+- [x] At 4/5 plays, UI warns "Near limit / 接近上限".
+- [x] At 5/5 plays, UI recommends replacing video.
+- [x] Replacing the video clears the recommendation.
 
 ## Phase 8: OneSignal Web Push
 

@@ -9,7 +9,14 @@ const roleRoutes: Array<[RegExp, AppRole[]]> = [
   [/^\/calendar(?:\/|$)/, ["family_member"]],
   [/^\/settings(?:\/|$)/, ["family_member"]],
   [/^\/device(?:\/|$)/, ["device"]],
-  [/^\/place(?:\/|$)/, ["public_place"]]
+  [/^\/place(?:\/|$)/, ["public_place"]],
+  [/^\/api\/admin(?:\/|$)/, ["super_admin"]],
+  [/^\/api\/locations(?:\/|$)/, ["family_member"]],
+  [/^\/api\/videos(?:\/|$)/, ["family_member"]],
+  [/^\/api\/settings(?:\/|$)/, ["family_member"]],
+  [/^\/api\/playback-logs(?:\/|$)/, ["family_member"]],
+  [/^\/api\/push(?:\/|$)/, ["family_member"]],
+  [/^\/api\/place(?:\/|$)/, ["public_place"]]
 ];
 
 const publicPrefixes = ["/api/auth", "/api/dev/seed", "/favicon", "/_astro"];

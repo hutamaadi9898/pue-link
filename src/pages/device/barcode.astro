@@ -1,11 +1,55 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
+import QRCode from "qrcode";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const device = account.device_id
+  ? await env.DB.prepare(
+      `select d.id, d.name, d.barcode_token, f.name as family_name
+       from devices d
+       join families f on f.id = d.family_id
+       where d.id = ? and d.is_active = 1
+       limit 1`
+    ).bind(account.device_id).first<{ id: string; name: string; barcode_token: string; family_name: string }>()
+  : null;
+
+if (!device) {
+  return new Response("Device not found.", { status: 404 });
+}
+
+const qrSvg = await QRCode.toString(device.barcode_token, {
+  type: "svg",
+  margin: 2,
+  width: 260,
+  color: {
+    dark: "#111827",
+    light: "#ffffff"
+  }
+});
 ---
 
-<BaseLayout title="Barcode Gelang - Pue Link">
-  <AppShell client:load variant="device" accountName={account?.display_name} accountRole={account?.role} />
+<BaseLayout title="Bracelet Barcode - Pue Link">
+  <main class="grid min-h-screen place-items-center bg-background px-4 py-6">
+    <section class="w-full max-w-sm rounded-lg border bg-card p-5 text-center shadow-sm">
+      <div class="mx-auto grid size-11 place-items-center rounded-md bg-primary text-primary-foreground">
+        <span class="text-lg font-bold">QR</span>
+      </div>
+      <p class="mt-5 text-xs font-bold uppercase text-muted-foreground"><span class="i18n-en">Bracelet emulator</span><span class="i18n-zh">手环模拟器</span></p>
+      <h1 class="mt-2 text-2xl font-bold">{device.name}</h1>
+      <p class="mt-2 text-sm text-muted-foreground">{device.family_name}</p>
+
+      <div class="mt-6 rounded-lg border bg-white p-4" set:html={qrSvg} />
+      <p class="mt-4 break-all rounded-md border bg-background px-3 py-2 font-mono text-xs font-bold">{device.barcode_token}</p>
+
+      <div class="mt-5 rounded-md bg-muted p-3 text-left">
+        <p class="text-xs font-semibold uppercase text-muted-foreground"><span class="i18n-en">Demo mode</span><span class="i18n-zh">演示模式</span></p>
+        <p class="mt-1 text-sm leading-6"><span class="i18n-en">Show this screen to the public kiosk, or copy the token manually if the camera is unavailable.</span><span class="i18n-zh">向公共自助机展示此屏幕；如果摄像头不可用，也可以手动复制令牌。</span></p>
+      </div>
+
+      <a class="mt-5 block h-10 rounded-md border px-4 py-2 text-sm font-semibold" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+    </section>
+  </main>
 </BaseLayout>

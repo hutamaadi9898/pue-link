@@ -1,18 +1,177 @@
 ---
-import { AppShell } from "@/components/app/AppShell";
+import { env } from "cloudflare:workers";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { FALLBACK_OVERUSE_THRESHOLD } from "@/lib/thresholds";
 
-const account = Astro.locals.currentAccount;
 export const prerender = false;
+
+const account = Astro.locals.currentAccount!;
+const familyId = account.family_id!;
+
+const [family, totals, refresh, refreshVideosResult, recentResult, locationsResult] = await Promise.all([
+  env.DB.prepare(`select name from families where id = ? limit 1`).bind(familyId).first<{ name: string }>(),
+  env.DB.prepare(
+    `select
+       (select count(*) from locations where is_active = 1) as locations,
+       (select count(*) from video_slots where family_id = ?) as slots,
+       (select count(*) from videos where family_id = ?) as videos,
+       (select count(*) from playback_logs where family_id = ?) as playbacks`
+  ).bind(familyId, familyId, familyId).first<{ locations: number; slots: number; videos: number; playbacks: number }>(),
+  env.DB.prepare(`select count(*) as count from videos where family_id = ? and needs_refresh = 1`).bind(familyId).first<{ count: number }>(),
+  env.DB.prepare(
+    `select v.id, v.title, v.play_count, vs.slot_number, l.id as location_id, l.name as location_name,
+            coalesce(v.overuse_threshold, l.overuse_threshold, cast(s.value as integer), ?) as threshold
+     from videos v
+     join video_slots vs on vs.id = v.slot_id
+     join locations l on l.id = v.location_id
+     left join settings s on s.key = 'global_overuse_threshold'
+     where v.family_id = ? and v.needs_refresh = 1
+     order by v.play_count desc, v.updated_at desc
+     limit 5`
+  ).bind(FALLBACK_OVERUSE_THRESHOLD, familyId).all<{
+    id: string;
+    title: string;
+    play_count: number;
+    slot_number: number;
+    location_id: string;
+    location_name: string;
+    threshold: number;
+  }>(),
+  env.DB.prepare(
+    `select pl.played_at, l.name as location_name, vs.slot_number, v.title, d.name as device_name
+     from playback_logs pl
+     join locations l on l.id = pl.location_id
+     join video_slots vs on vs.id = pl.slot_id
+     join videos v on v.id = pl.video_id
+     join devices d on d.id = pl.device_id
+     where pl.family_id = ?
+     order by pl.played_at desc
+     limit 8`
+  ).bind(familyId).all<{ played_at: string; location_name: string; slot_number: number; title: string; device_name: string }>(),
+  env.DB.prepare(
+    `select l.id, l.name, l.kind, l.overuse_threshold,
+            count(vs.id) as slot_count,
+            count(v.id) as video_count,
+            coalesce(sum(v.play_count), 0) as play_count
+     from locations l
+     left join video_slots vs on vs.location_id = l.id and vs.family_id = ?
+     left join videos v on v.id = vs.video_id
+     where l.is_active = 1
+     group by l.id
+     order by l.name`
+  ).bind(familyId).all<{ id: string; name: string; kind: string | null; overuse_threshold: number; slot_count: number; video_count: number; play_count: number }>()
+]);
+
+const recent = recentResult.results ?? [];
+const locations = locationsResult.results ?? [];
+const refreshVideos = refreshVideosResult.results ?? [];
 ---
 
 <BaseLayout title="Dashboard - Pue Link">
-  <AppShell
-    client:load
-    title="Ringkasan"
-    eyebrow="Dashboard keluarga"
-    description="Pantau video, lokasi aktif, rekomendasi refresh, dan riwayat pemutaran terbaru."
-    accountName={account?.display_name}
-    accountRole={account?.role}
-  />
+  <main class="app-frame">
+    <aside class="app-sidebar">
+      <div class="border-b pb-4">
+        <p class="font-bold">Pue Link</p>
+        <p class="mt-1 text-xs text-muted-foreground"><span class="i18n-en">Family dashboard</span><span class="i18n-zh">家庭看板</span></p>
+      </div>
+      <nav class="app-nav mt-3 lg:mt-5">
+        <a class="app-nav-link app-nav-link-active" href="/dashboard"><span class="i18n-en">Home</span><span class="i18n-zh">首页</span></a>
+        <a class="app-nav-link" href="/locations"><span class="i18n-en">Locations</span><span class="i18n-zh">地点</span></a>
+        <a class="app-nav-link" href="/calendar"><span class="i18n-en">Calendar</span><span class="i18n-zh">日历</span></a>
+        <a class="app-nav-link" href="/settings"><span class="i18n-en">Settings</span><span class="i18n-zh">设置</span></a>
+        <a class="app-nav-link" href="/logout"><span class="i18n-en">Sign out</span><span class="i18n-zh">退出</span></a>
+      </nav>
+      <div class="mt-6 rounded-md border bg-background p-3">
+        <p class="text-xs font-semibold uppercase text-muted-foreground"><span class="i18n-en">Family</span><span class="i18n-zh">家庭</span></p>
+        <p class="mt-2 text-sm font-bold">{family?.name ?? account.display_name}</p>
+      </div>
+    </aside>
+
+    <section class="app-content">
+      <header class="app-panel">
+        <p class="text-xs font-bold uppercase text-muted-foreground"><span class="i18n-en">Dashboard</span><span class="i18n-zh">看板</span></p>
+        <h1 class="app-title"><span class="i18n-en">Family summary</span><span class="i18n-zh">家庭摘要</span></h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span class="i18n-en">Track active locations, video slots, refresh recommendations, and recent playback for {family?.name ?? "this family"}.</span>
+          <span class="i18n-zh">查看 {family?.name ?? "此家庭"} 的活跃地点、视频槽位、更新建议和最近播放记录。</span>
+        </p>
+      </header>
+
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-lg border bg-card p-4 shadow-sm"><p class="text-sm text-muted-foreground"><span class="i18n-en">Active locations</span><span class="i18n-zh">活跃地点</span></p><p class="mt-2 text-2xl font-bold">{totals?.locations ?? 0}</p></div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm"><p class="text-sm text-muted-foreground"><span class="i18n-en">Available slots</span><span class="i18n-zh">可用槽位</span></p><p class="mt-2 text-2xl font-bold">{totals?.slots ?? 0}</p></div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm"><p class="text-sm text-muted-foreground"><span class="i18n-en">Uploaded videos</span><span class="i18n-zh">已上传视频</span></p><p class="mt-2 text-2xl font-bold">{totals?.videos ?? 0}</p></div>
+        <div class="rounded-lg border bg-card p-4 shadow-sm"><p class="text-sm text-muted-foreground"><span class="i18n-en">Needs refresh</span><span class="i18n-zh">需更新</span></p><p class="mt-2 text-2xl font-bold text-destructive">{refresh?.count ?? 0}</p></div>
+      </div>
+
+      <div class="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <section class="app-panel">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="font-bold"><span class="i18n-en">Demo locations</span><span class="i18n-zh">演示地点</span></h2>
+            <a class="text-sm font-semibold text-primary" href="/locations"><span class="i18n-en">View all</span><span class="i18n-zh">查看全部</span></a>
+          </div>
+          <div class="mt-4 grid gap-3">
+            {locations.map((location) => (
+              <a class="rounded-md border bg-background p-3 transition-colors hover:border-primary/50" href={`/locations/${location.id}`}>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="min-w-0">
+                    <p class="font-semibold">{location.name}</p>
+                    <p class="mt-1 text-xs text-muted-foreground">{location.kind ?? "Public location"} · <span class="i18n-en">limit</span><span class="i18n-zh">上限</span> {location.overuse_threshold} <span class="i18n-en">plays</span><span class="i18n-zh">次播放</span></p>
+                  </div>
+                  <span class="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{location.video_count}/3 <span class="i18n-en">videos</span><span class="i18n-zh">视频</span></span>
+                </div>
+                <p class="mt-3 text-xs text-muted-foreground">{location.play_count} <span class="i18n-en">total plays at this location.</span><span class="i18n-zh">次总播放。</span></p>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section class="app-panel">
+          <h2 class="font-bold"><span class="i18n-en">Recent playback</span><span class="i18n-zh">最近播放</span></h2>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full min-w-[640px] text-left text-sm">
+              <thead class="border-b text-xs uppercase text-muted-foreground">
+                <tr><th class="py-3 pr-3"><span class="i18n-en">Time</span><span class="i18n-zh">时间</span></th><th class="py-3 pr-3"><span class="i18n-en">Location</span><span class="i18n-zh">地点</span></th><th class="py-3 pr-3"><span class="i18n-en">Video</span><span class="i18n-zh">视频</span></th><th class="py-3 pr-3"><span class="i18n-en">Device</span><span class="i18n-zh">设备</span></th></tr>
+              </thead>
+              <tbody>
+                {recent.length === 0 && <tr><td class="py-5 text-muted-foreground" colspan="4"><span class="i18n-en">No playback yet.</span><span class="i18n-zh">暂无播放记录。</span></td></tr>}
+                {recent.map((row) => (
+                  <tr class="border-b last:border-0">
+                    <td class="py-3 pr-3 text-muted-foreground">{new Date(row.played_at).toLocaleString("en-US")}</td>
+                    <td class="py-3 pr-3">{row.location_name}</td>
+                    <td class="py-3 pr-3 font-semibold">Slot {row.slot_number}: {row.title}</td>
+                    <td class="py-3 pr-3 text-muted-foreground">{row.device_name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section class="app-panel">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="font-bold"><span class="i18n-en">Refresh recommendations</span><span class="i18n-zh">更新建议</span></h2>
+            <p class="mt-1 text-sm text-muted-foreground"><span class="i18n-en">Videos at or above their resolved threshold are queued for replacement.</span><span class="i18n-zh">达到或超过上限的视频会进入替换建议。</span></p>
+          </div>
+          <a class="text-sm font-semibold text-primary" href="/settings"><span class="i18n-en">Adjust thresholds</span><span class="i18n-zh">调整上限</span></a>
+        </div>
+        <div class="mt-4 grid gap-3">
+          {refreshVideos.length === 0 && <p class="rounded-md border bg-background p-4 text-sm text-muted-foreground"><span class="i18n-en">No videos need refresh.</span><span class="i18n-zh">没有需要更新的视频。</span></p>}
+          {refreshVideos.map((video) => (
+            <a class="rounded-md border bg-background p-4 transition-colors hover:border-primary/50" href={`/locations/${video.location_id}`}>
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="font-semibold">{video.title}</p>
+                  <p class="mt-1 text-xs text-muted-foreground">{video.location_name} · Slot {video.slot_number}</p>
+                </div>
+                <span class="rounded-md bg-destructive/10 px-2 py-1 text-xs font-bold text-destructive">{video.play_count}/{video.threshold} <span class="i18n-en">plays</span><span class="i18n-zh">次</span></span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    </section>
+  </main>
 </BaseLayout>
