@@ -177,8 +177,8 @@ export function CalendarPlaybackHistory({ rows, locations, initialMonth, initial
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_25rem]">
       <section className="app-panel">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+        <div className="grid gap-4">
+          <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase text-muted-foreground">
               <span className="i18n-en">Playback calendar</span>
               <span className="i18n-zh">播放日曆</span>
@@ -197,7 +197,7 @@ export function CalendarPlaybackHistory({ rows, locations, initialMonth, initial
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[12rem_1fr] lg:min-w-[27rem]">
+          <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)] lg:max-w-xl">
             <label className="grid gap-1 text-sm font-semibold">
               <span className="i18n-en">Month</span>
               <span className="i18n-zh">月份</span>

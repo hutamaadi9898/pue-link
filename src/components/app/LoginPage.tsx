@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Heart, Loader2, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Link2, Loader2, LockKeyhole, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ export function LoginPage({ redirectTo = "/" }: Props) {
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="mb-10 flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-md bg-primary text-primary-foreground">
-              <Heart className="size-5 fill-current" />
+              <Link2 className="size-5" />
             </div>
             <div>
               <p className="text-base font-bold leading-none">Pue Link</p>
@@ -114,11 +114,10 @@ export function LoginPage({ redirectTo = "/" }: Props) {
           <Card className="h-full border-white/10 bg-white/8 text-white shadow-none">
             <CardContent className="flex h-full flex-col justify-between p-8">
               <div>
-                <Badge className="border-white/20 bg-white/10 text-white">Minimarket Sejahtera</Badge>
                 <div className="mt-10 grid aspect-video place-items-center overflow-hidden rounded-lg border border-white/15 bg-slate-900">
                   <div className="grid gap-4 text-center">
                     <div className="mx-auto grid size-16 place-items-center rounded-md bg-primary">
-                      <Heart className="size-8 fill-current" />
+                      <Link2 className="size-8" />
                     </div>
                     <p className="text-sm text-white/70"><span className="i18n-en">Family video ready to play</span><span className="i18n-zh">家庭视频可播放</span></p>
                   </div>
