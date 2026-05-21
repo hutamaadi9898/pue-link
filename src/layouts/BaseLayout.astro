@@ -1,4 +1,5 @@
 ---
+import { env } from "cloudflare:workers";
 import "@/styles/global.css";
 
 interface Props {
@@ -6,6 +7,11 @@ interface Props {
 }
 
 const { title = "Pue Link" } = Astro.props;
+const oneSignalAppId = env.PUBLIC_ONESIGNAL_APP_ID || "";
+const oneSignalExternalId = Astro.locals.currentAccount?.role === "family_member"
+  ? Astro.locals.currentAccount.id
+  : "";
+const shouldLoadOneSignal = Boolean(oneSignalAppId && oneSignalExternalId);
 ---
 
 <html lang="en" data-language="en">
@@ -16,6 +22,27 @@ const { title = "Pue Link" } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    {shouldLoadOneSignal && (
+      <>
+        <script is:inline define:vars={{ oneSignalAppId, oneSignalExternalId }}>
+          window.OneSignalDeferred = window.OneSignalDeferred || [];
+          window.OneSignalDeferred.push(async function(OneSignal) {
+            try {
+              await OneSignal.init({
+                appId: oneSignalAppId,
+                allowLocalhostAsSecureOrigin: true
+              });
+              if (oneSignalExternalId) {
+                await OneSignal.login(oneSignalExternalId);
+              }
+            } catch (error) {
+              window.PueLinkOneSignalInitError = error instanceof Error ? error.message : "OneSignal could not initialize.";
+            }
+          });
+        </script>
+        <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+      </>
+    )}
   </head>
   <body>
     <slot />

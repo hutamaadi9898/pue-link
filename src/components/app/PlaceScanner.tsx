@@ -42,6 +42,24 @@ function message(en: string, zh: string) {
   return currentLanguage() === "zh" ? zh : en;
 }
 
+function getCameraSupportError() {
+  if (!window.isSecureContext) {
+    return message(
+      "Camera requires HTTPS or localhost. Open the deployed HTTPS URL, or enter the token manually on this device.",
+      "摄像头需要 HTTPS 或 localhost。请打开已部署的 HTTPS 地址，或在此设备上手动输入令牌。"
+    );
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return message(
+      "This browser does not expose camera access. Open this page in Chrome or Safari, not an in-app browser, or enter the token manually.",
+      "此浏览器未提供摄像头访问。请用 Chrome 或 Safari 打开页面，不要使用应用内浏览器，或手动输入令牌。"
+    );
+  }
+
+  return null;
+}
+
 export function PlaceScanner({ accountName, locationName, defaultMachineId }: Props) {
   const [token, setToken] = useState("");
   const [machineId, setMachineId] = useState(defaultMachineId || suggestedMachineId(locationName));
@@ -108,8 +126,10 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
     setIsRequestingCamera(true);
 
     try {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-        throw new Error("unsupported");
+      const supportError = getCameraSupportError();
+      if (supportError) {
+        setCameraMessage(supportError);
+        return;
       }
 
       setCameraMessage(message("Requesting camera permission...", "正在请求摄像头权限..."));
@@ -147,13 +167,16 @@ export function PlaceScanner({ accountName, locationName, defaultMachineId }: Pr
       const errorName = cameraError instanceof DOMException ? cameraError.name : "";
       const denied = errorName === "NotAllowedError" || errorName === "PermissionDeniedError";
       const unavailable = errorName === "NotFoundError" || errorName === "DevicesNotFoundError";
+      const busy = errorName === "NotReadableError" || errorName === "TrackStartError";
 
       setCameraMessage(
         denied
           ? message("Camera permission was blocked. Allow camera access in the browser site settings, then tap Camera again.", "摄像头权限已被阻止。请在浏览器网站设置中允许摄像头，然后再次点击摄像头。")
           : unavailable
             ? message("No camera was found on this device. Enter the token manually.", "此设备未找到摄像头。请手动输入令牌。")
-            : message("Camera scanner is unavailable in this browser. Enter the token manually.", "此浏览器无法使用摄像头扫描。请手动输入令牌。")
+            : busy
+              ? message("The camera is already in use by another app. Close the other app, then tap Camera again.", "摄像头正被其他应用使用。请关闭其他应用，然后再次点击摄像头。")
+              : message("Camera scanner is unavailable in this browser. Open this page in Chrome or Safari, or enter the token manually.", "此浏览器无法使用摄像头扫描。请用 Chrome 或 Safari 打开页面，或手动输入令牌。")
       );
       stopCamera();
     } finally {

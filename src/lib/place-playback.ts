@@ -1,4 +1,5 @@
 import { createId } from "@/lib/ids";
+import { sendVideoRefreshNotification } from "@/lib/onesignal";
 import { resolveOveruseThreshold } from "@/lib/thresholds";
 import { addMinutesIso, nowIso } from "@/lib/time";
 
@@ -19,6 +20,8 @@ export type SelectedPlaybackVideo = {
   location_overuse_threshold: number | null;
   global_overuse_threshold: number | null;
   needs_refresh: number;
+  last_overuse_notified_at: string | null;
+  location_name: string;
   created_at: string;
 };
 
@@ -59,7 +62,8 @@ export async function selectNextPlaybackVideo(env: Env, input: { familyId: strin
     `select v.id, v.title, v.description, v.slot_id, vs.slot_number, v.family_id, v.location_id,
             v.r2_key, v.mime_type, v.file_size, v.play_count, v.last_played_at,
             v.overuse_threshold, l.overuse_threshold as location_overuse_threshold,
-            cast(s.value as integer) as global_overuse_threshold, v.needs_refresh, v.created_at
+            cast(s.value as integer) as global_overuse_threshold, v.needs_refresh,
+            v.last_overuse_notified_at, l.name as location_name, v.created_at
      from videos v
      join video_slots vs on vs.id = v.slot_id and vs.video_id = v.id
      join locations l on l.id = v.location_id
@@ -92,6 +96,7 @@ export async function createPlaybackSession(env: Env, input: {
     globalThreshold: input.video.global_overuse_threshold
   }).threshold;
   const needsRefresh = nextPlayCount >= threshold ? 1 : input.video.needs_refresh;
+  const shouldNotify = nextPlayCount >= threshold && !input.video.last_overuse_notified_at;
 
   await env.DB.batch([
     env.DB.prepare(
@@ -134,6 +139,26 @@ export async function createPlaybackSession(env: Env, input: {
       timestamp
     )
   ]);
+
+  if (shouldNotify) {
+    const notification = await sendVideoRefreshNotification(env, {
+      familyId: input.video.family_id,
+      locationId: input.video.location_id,
+      locationName: input.video.location_name,
+      slotNumber: input.video.slot_number,
+      playCount: nextPlayCount
+    });
+
+    if (notification.ok && notification.sentAt) {
+      await env.DB.prepare(
+        `update videos
+         set last_overuse_notified_at = ?, updated_at = ?
+         where id = ? and family_id = ? and location_id = ?`
+      )
+        .bind(notification.sentAt, notification.sentAt, input.video.id, input.video.family_id, input.video.location_id)
+        .run();
+    }
+  }
 
   return { sessionId, logId, playCount: nextPlayCount, playedAt: timestamp, threshold, needsRefresh: Boolean(needsRefresh) };
 }

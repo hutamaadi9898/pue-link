@@ -25,7 +25,7 @@
 	],
 	"vars": {
 		"BETTER_AUTH_SECRET": "pue-link-local-demo-secret-change-before-production",
-		"BETTER_AUTH_URL": "http://localhost:4321",
+		"BETTER_AUTH_URL": "https://pue-link.hutama39.workers.dev",
 		"PUBLIC_ONESIGNAL_APP_ID": "fb3dde7a-e046-48e1-bcde-e7dfd4a8185c",
 		"PUE_LINK_ALLOW_SEED": "true",
 		"PUE_LINK_DEFAULT_THRESHOLD": "5"
