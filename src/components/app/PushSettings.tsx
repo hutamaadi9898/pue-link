@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Bell, Send, ShieldCheck } from "lucide-react";
+import { Bell, BellOff, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 declare global {
@@ -20,7 +20,7 @@ type OneSignalSdk = {
       id: string | null;
       optedIn?: boolean;
       optIn?: () => Promise<void>;
-      addEventListener?: (event: "change", callback: () => void) => void;
+      optOut?: () => Promise<void>;
     };
   };
 };
@@ -30,15 +30,15 @@ type Status = "idle" | "busy" | "success" | "error";
 type Props = {
   appId: string;
   canSendNotifications: boolean;
-  initialSubscriptionCount: number;
+  initialLanguage: "en" | "zh";
 };
 
-export function PushSettings({ appId, canSendNotifications, initialSubscriptionCount }: Props) {
+export function PushSettings({ appId, canSendNotifications, initialLanguage }: Props) {
   const [status, setStatus] = React.useState<Status>("idle");
   const [testStatus, setTestStatus] = React.useState<Status>("idle");
   const [message, setMessage] = React.useState("");
   const [subscriptionId, setSubscriptionId] = React.useState<string | null>(null);
-  const [permission, setPermission] = React.useState<"granted" | "blocked" | "unknown">("unknown");
+  const [language, setLanguage] = React.useState<"en" | "zh">(initialLanguage);
 
   const withOneSignal = React.useCallback((callback: (OneSignal: OneSignalSdk) => Promise<void>) => {
     if (!appId) {
@@ -87,7 +87,6 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
         return;
       }
 
-      setPermission(OneSignal.Notifications.permission ? "granted" : "unknown");
       const id = OneSignal.User.PushSubscription.id;
       setSubscriptionId(id);
       if (!id) return;
@@ -95,7 +94,7 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
       await registerSubscription(id);
       if (showSuccess) {
         setStatus("success");
-        setMessage("This browser is subscribed for refresh recommendations.");
+        setMessage("Notifications are enabled on this browser.");
       }
     });
   }, [registerSubscription, withOneSignal]);
@@ -104,7 +103,7 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
     syncCurrentSubscription(false);
   }, [syncCurrentSubscription]);
 
-  const subscribe = () => {
+  const enableNotifications = () => {
     setStatus("busy");
     setMessage("");
     withOneSignal(async (OneSignal) => {
@@ -120,25 +119,55 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
       }
 
       const id = OneSignal.User.PushSubscription.id;
-      setPermission(OneSignal.Notifications.permission ? "granted" : "blocked");
       setSubscriptionId(id);
 
       if (!id) {
         setStatus("error");
-        setMessage("Permission was handled, but OneSignal has not returned a subscription ID yet. Try again in a few seconds.");
+        setMessage("Permission was handled, but this browser is not subscribed yet. Try again in a few seconds.");
         return;
       }
 
       await registerSubscription(id);
       setStatus("success");
-      setMessage("This browser is subscribed for refresh recommendations.");
+      setMessage("Notifications are enabled on this browser.");
     });
+  };
+
+  const disableNotifications = () => {
+    setStatus("busy");
+    setMessage("");
+    withOneSignal(async (OneSignal) => {
+      if (OneSignal.User.PushSubscription.optOut) {
+        await OneSignal.User.PushSubscription.optOut();
+      }
+      setSubscriptionId(null);
+      setStatus("success");
+      setMessage("Notifications are off on this browser.");
+    });
+  };
+
+  const saveLanguage = async (nextLanguage: "en" | "zh") => {
+    setLanguage(nextLanguage);
+    setMessage("");
+    const response = await fetch("/api/push/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language: nextLanguage })
+    });
+    const payload = await response.json() as { ok?: boolean; error?: string };
+    if (!response.ok || !payload.ok) {
+      setStatus("error");
+      setMessage(payload.error || "Could not save notification language.");
+      return;
+    }
+    setStatus("success");
+    setMessage("Notification language saved.");
   };
 
   const sendTest = async () => {
     if (!canSendNotifications) {
       setTestStatus("error");
-      setMessage("OneSignal REST API key is missing on the Worker. Add ONESIGNAL_REST_API_KEY before sending tests.");
+      setMessage("Notification sending is not configured yet.");
       return;
     }
 
@@ -146,14 +175,14 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
     setMessage("");
     try {
       const response = await fetch("/api/push/test", { method: "POST" });
-      const payload = await response.json() as { ok?: boolean; error?: string; data?: { recipients?: number; notificationId?: string } };
+      const payload = await response.json() as { ok?: boolean; error?: string; data?: { recipients?: number } };
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || "Test notification failed.");
       }
       setTestStatus("success");
       setMessage(
         typeof payload.data?.recipients === "number"
-          ? `Test notification sent to ${payload.data.recipients} recipient(s).`
+          ? `Test sent to ${payload.data.recipients} subscribed browser(s).`
           : "Test notification sent."
       );
     } catch (error) {
@@ -166,43 +195,17 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
 
   return (
     <section className="app-panel grid gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase text-muted-foreground">
-            <span className="i18n-en">Web push</span><span className="i18n-zh">网页推送</span>
-          </p>
-          <h2 className="mt-1 text-lg font-bold">
-            <span className="i18n-en">Refresh notifications</span><span className="i18n-zh">更新提醒</span>
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            <span className="i18n-en">Subscribe this browser so the family account receives a recommendation when a video reaches its refresh limit.</span>
-            <span className="i18n-zh">订阅此浏览器，当视频达到更新上限时接收家庭提醒。</span>
-          </p>
-        </div>
-        <div className="rounded-md border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">
-          {initialSubscriptionCount} <span className="i18n-en">saved browser(s)</span><span className="i18n-zh">个已保存浏览器</span>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-md border bg-background p-3">
-          <p className="text-xs font-semibold text-muted-foreground">App ID</p>
-          <p className="mt-1 truncate text-sm font-bold">{appId || "Not configured"}</p>
-        </div>
-        <div className="rounded-md border bg-background p-3">
-          <p className="text-xs font-semibold text-muted-foreground">Permission</p>
-          <p className="mt-1 text-sm font-bold capitalize">{permission}</p>
-        </div>
-        <div className="rounded-md border bg-background p-3">
-          <p className="text-xs font-semibold text-muted-foreground">Subscription</p>
-          <p className="mt-1 truncate text-sm font-bold">{subscriptionId || "Not registered"}</p>
-        </div>
-        <div className="rounded-md border bg-background p-3 sm:col-span-3">
-          <p className="text-xs font-semibold text-muted-foreground">Send status</p>
-          <p className={`mt-1 text-sm font-bold ${canSendNotifications ? "text-emerald-700" : "text-destructive"}`}>
-            {canSendNotifications ? "Server API key configured" : "Missing ONESIGNAL_REST_API_KEY"}
-          </p>
-        </div>
+      <div>
+        <p className="text-xs font-bold uppercase text-muted-foreground">
+          <span className="i18n-en">Notifications</span><span className="i18n-zh">通知</span>
+        </p>
+        <h2 className="mt-1 text-lg font-bold">
+          <span className="i18n-en">Family refresh alerts</span><span className="i18n-zh">家庭更新提醒</span>
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+          <span className="i18n-en">Alerts go to every browser subscribed by this family account.</span>
+          <span className="i18n-zh">提醒会发送到此家庭账户已订阅的所有浏览器。</span>
+        </p>
       </div>
 
       {message && (
@@ -215,17 +218,33 @@ export function PushSettings({ appId, canSendNotifications, initialSubscriptionC
         </p>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button type="button" onClick={subscribe} disabled={!appId || status === "busy"}>
-          {isSubscribed ? <ShieldCheck /> : <Bell />}
-          <span className="i18n-en">{isSubscribed ? "Sync subscription" : "Enable notifications"}</span>
-          <span className="i18n-zh">{isSubscribed ? "同步订阅" : "启用通知"}</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button type="button" onClick={isSubscribed ? disableNotifications : enableNotifications} disabled={!appId || status === "busy"}>
+          {isSubscribed ? <BellOff /> : <Bell />}
+          <span className="i18n-en">{isSubscribed ? "Notifications on" : "Enable notifications"}</span>
+          <span className="i18n-zh">{isSubscribed ? "通知已开启" : "启用通知"}</span>
         </Button>
         <Button type="button" variant="outline" onClick={sendTest} disabled={!appId || !isSubscribed || !canSendNotifications || testStatus === "busy"}>
           <Send />
           <span className="i18n-en">Send test</span>
           <span className="i18n-zh">发送测试</span>
         </Button>
+        <div className="inline-flex h-10 rounded-md border bg-background p-1">
+          <button
+            className={`rounded px-3 text-sm font-semibold ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            type="button"
+            onClick={() => void saveLanguage("en")}
+          >
+            English
+          </button>
+          <button
+            className={`rounded px-3 text-sm font-semibold ${language === "zh" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            type="button"
+            onClick={() => void saveLanguage("zh")}
+          >
+            中文
+          </button>
+        </div>
       </div>
     </section>
   );

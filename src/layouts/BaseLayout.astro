@@ -9,7 +9,7 @@ interface Props {
 const { title = "Pue Link" } = Astro.props;
 const oneSignalAppId = env.PUBLIC_ONESIGNAL_APP_ID || "";
 const oneSignalExternalId = Astro.locals.currentAccount?.role === "family_member"
-  ? Astro.locals.currentAccount.id
+  ? Astro.locals.currentAccount.family_id
   : "";
 const shouldLoadOneSignal = Boolean(oneSignalAppId && oneSignalExternalId);
 ---
